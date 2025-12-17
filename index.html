@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+htmlDownloadCopy code<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gesture Particle Magic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gesture Particle Visualization</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -15,159 +16,247 @@
 
         body {
             overflow: hidden;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a0a2a 100%);
+            background: #0a0a0f;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
+            color: white;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
 
         #particleCanvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1;
+            z-index: 2;
         }
 
         #videoContainer {
-            position: fixed;
+            position: absolute;
             bottom: 20px;
             right: 20px;
-            z-index: 10;
-            border-radius: 16px;
+            width: 240px;
+            height: 180px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(100, 150, 255, 0.2);
-            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
-        #videoContainer:hover {
-            transform: scale(1.02);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(100, 150, 255, 0.3);
+        @media (max-width: 768px) {
+            #videoContainer {
+                width: 160px;
+                height: 120px;
+                bottom: 10px;
+                right: 10px;
+            }
         }
 
         #webcam {
-            width: 240px;
-            height: 180px;
+            position: absolute;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
-            display: block;
             transform: scaleX(-1);
         }
 
-        #webcam.hidden {
-            display: none;
+        #handCanvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
         }
 
-        #videoContainer.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        #ui {
-            position: fixed;
+        #gesturePanel {
+            position: absolute;
             top: 20px;
             left: 20px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .ui-panel {
-            background: rgba(20, 20, 40, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(100, 150, 255, 0.2);
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
             border-radius: 16px;
             padding: 20px;
-            color: #e0e8ff;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 280px;
+            transition: transform 0.3s ease;
         }
 
-        .ui-panel h2 {
+        @media (max-width: 768px) {
+            #gesturePanel {
+                top: 10px;
+                left: 10px;
+                padding: 12px;
+                max-width: 200px;
+                font-size: 12px;
+            }
+        }
+
+        #gesturePanel h3 {
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: rgba(150, 180, 255, 0.8);
-            margin-bottom: 12px;
-            font-weight: 500;
-        }
-
-        #gestureDisplay {
-            font-size: 28px;
             font-weight: 600;
-            background: linear-gradient(135deg, #64b5f6, #ce93d8, #f48fb1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            min-height: 36px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, rgba(100, 150, 255, 0.2), rgba(150, 100, 255, 0.2));
-            border: 1px solid rgba(100, 150, 255, 0.3);
-            color: #e0e8ff;
-            padding: 12px 20px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            color: rgba(255, 255, 255, 0.9);
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .btn:hover {
-            background: linear-gradient(135deg, rgba(100, 150, 255, 0.4), rgba(150, 100, 255, 0.4));
-            border-color: rgba(100, 150, 255, 0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(100, 150, 255, 0.3);
-        }
-
-        .btn.active {
-            background: linear-gradient(135deg, rgba(100, 255, 150, 0.3), rgba(100, 200, 255, 0.3));
-            border-color: rgba(100, 255, 150, 0.5);
-        }
-
-        .btn-icon {
-            font-size: 18px;
-        }
-
-        .gesture-list {
-            display: grid;
-            gap: 8px;
-            margin-top: 8px;
+        #gesturePanel h3::before {
+            content: '✋';
         }
 
         .gesture-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 13px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 12px;
         }
 
-        .gesture-item:hover {
-            background: rgba(255, 255, 255, 0.08);
+        .gesture-item:last-child {
+            border-bottom: none;
         }
 
         .gesture-icon {
-            font-size: 20px;
             width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(255, 100, 150, 0.3), rgba(100, 150, 255, 0.3));
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .gesture-text {
+            flex: 1;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        #currentGesture {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            z-index: 5;
             text-align: center;
+            transition: opacity 0.3s ease;
         }
 
-        .gesture-name {
-            color: rgba(200, 210, 255, 0.9);
-            font-weight: 500;
+        @media (max-width: 768px) {
+            #currentGesture {
+                font-size: 18px;
+            }
         }
 
-        .gesture-effect {
-            color: rgba(150, 160, 200, 0.7);
-            font-size: 11px;
-            margin-left: auto;
+        #statusIndicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            z-index: 10;
+            font-size: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            #statusIndicator {
+                top: 10px;
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 8px 12px;
+            }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.active {
+            background: #44ff88;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #zoomIndicator {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 16px;
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            z-index: 10;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #zoomIndicator.visible {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            #zoomIndicator {
+                bottom: 140px;
+                left: 10px;
+                font-size: 12px;
+            }
+        }
+
+        #togglePanel {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(20, 20, 30, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            z-index: 11;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        @media (max-width: 768px) {
+            #togglePanel {
+                display: flex;
+            }
+            #gesturePanel {
+                transform: translateX(-120%);
+            }
+            #gesturePanel.visible {
+                transform: translateX(0);
+            }
         }
 
         #loadingOverlay {
@@ -176,7 +265,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            background: #0a0a0f;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -193,8 +282,8 @@
         .loader {
             width: 60px;
             height: 60px;
-            border: 3px solid rgba(100, 150, 255, 0.2);
-            border-top-color: #64b5f6;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #ff6b9d;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -203,706 +292,617 @@
             to { transform: rotate(360deg); }
         }
 
-        .loading-text {
+        #loadingText {
             margin-top: 20px;
-            color: rgba(200, 210, 255, 0.8);
-            font-size: 16px;
-            letter-spacing: 1px;
-        }
-
-        #instructions {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            text-align: center;
-            color: rgba(200, 210, 255, 0.6);
             font-size: 14px;
-            padding: 12px 24px;
-            background: rgba(20, 20, 40, 0.7);
-            backdrop-filter: blur(8px);
-            border-radius: 30px;
-            border: 1px solid rgba(100, 150, 255, 0.15);
-        }
-
-        @media (max-width: 768px) {
-            #videoContainer {
-                bottom: 10px;
-                right: 10px;
-            }
-
-            #webcam {
-                width: 160px;
-                height: 120px;
-            }
-
-            #ui {
-                top: 10px;
-                left: 10px;
-            }
-
-            .ui-panel {
-                padding: 14px;
-            }
-
-            #gestureDisplay {
-                font-size: 22px;
-            }
-
-            #instructions {
-                font-size: 12px;
-                padding: 10px 18px;
-                bottom: 10px;
-            }
+            color: rgba(255, 255, 255, 0.6);
         }
     </style>
 </head>
 <body>
-    <!-- Loading Overlay -->
     <div id="loadingOverlay">
         <div class="loader"></div>
-        <p class="loading-text">Initializing Hand Tracking...</p>
+        <div id="loadingText">Initializing camera & hand tracking...</div>
     </div>
 
-    <!-- Main Particle Canvas -->
-    <canvas id="particleCanvas"></canvas>
-
-    <!-- Webcam Feed -->
-    <div id="videoContainer">
-        <video id="webcam" autoplay playsinline></video>
-    </div>
-
-    <!-- UI Controls -->
-    <div id="ui">
-        <div class="ui-panel">
-            <h2>Detected Gesture</h2>
-            <div id="gestureDisplay">Waiting...</div>
+    <div id="container">
+        <canvas id="particleCanvas"></canvas>
+        
+        <div id="videoContainer">
+            <video id="webcam" playsinline autoplay muted></video>
+            <canvas id="handCanvas"></canvas>
         </div>
 
-        <button id="toggleCamera" class="btn active">
-            <span class="btn-icon">📷</span>
-            <span>Camera On</span>
-        </button>
-
-        <div class="ui-panel">
-            <h2>Gesture Guide</h2>
-            <div class="gesture-list">
-                <div class="gesture-item">
-                    <span class="gesture-icon">🤙</span>
-                    <span class="gesture-name">Shaka/Oppa</span>
-                    <span class="gesture-effect">Heart</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="gesture-icon">✌️</span>
-                    <span class="gesture-name">Peace</span>
-                    <span class="gesture-effect">I LOVE YOU</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="gesture-icon">🖐️</span>
-                    <span class="gesture-name">Open Hand</span>
-                    <span class="gesture-effect">Spread Out</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="gesture-icon">✊</span>
-                    <span class="gesture-name">Fist</span>
-                    <span class="gesture-effect">Gather In</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="gesture-icon">🤏</span>
-                    <span class="gesture-name">Pinch</span>
-                    <span class="gesture-effect">Swirl</span>
-                </div>
-                <div class="gesture-item">
-                    <span class="gesture-icon">👆</span>
-                    <span class="gesture-name">Point Up</span>
-                    <span class="gesture-effect">Wave</span>
-                </div>
+        <button id="togglePanel">☰</button>
+        
+        <div id="gesturePanel">
+            <h3>Gestures</h3>
+            <div class="gesture-item">
+                <div class="gesture-icon">🖐️</div>
+                <div class="gesture-text">Open Palm → Release particles</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">✊</div>
+                <div class="gesture-text">Fist → Absorb particles</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">🤟</div>
+                <div class="gesture-text">Rock Sign → "I LOVE YOU"</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">✌️</div>
+                <div class="gesture-text">Peace Sign → "Made by Jay"</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">🤏</div>
+                <div class="gesture-text">Pinch → 3D Heart zoom</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">🫰</div>
+                <div class="gesture-text">Finger Heart → Heart shape</div>
             </div>
         </div>
-    </div>
 
-    <!-- Instructions -->
-    <div id="instructions">
-        Show hand gestures to the camera to control particles ✨
+        <div id="statusIndicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+
+        <div id="currentGesture"></div>
+
+        <div id="zoomIndicator">
+            Zoom: <span id="zoomValue">100</span>%
+        </div>
     </div>
 
     <script>
-        /**
-         * Gesture Particle Magic
-         * An interactive particle animation controlled by hand gestures
-         * Uses MediaPipe Hands for real-time hand tracking
-         */
+        // Main Application
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        const videoElement = document.getElementById('webcam');
+        const handCanvas = document.getElementById('handCanvas');
+        const handCtx = handCanvas.getContext('2d');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const currentGestureDisplay = document.getElementById('currentGesture');
+        const zoomIndicator = document.getElementById('zoomIndicator');
+        const zoomValue = document.getElementById('zoomValue');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const togglePanel = document.getElementById('togglePanel');
+        const gesturePanel = document.getElementById('gesturePanel');
 
-        // ==================== CONFIGURATION ====================
-        const CONFIG = {
-            particleCount: 800,           // Number of particles
-            particleBaseSize: 3,          // Base particle size
-            particleSizeVariation: 2,     // Size variation
-            transitionSpeed: 0.03,        // How fast particles move to targets (0-1)
-            floatAmplitude: 30,           // Floating motion amplitude
-            floatSpeed: 0.001,            // Floating motion speed
-            gestureDebounce: 300,         // Minimum ms between gesture changes
-            colors: [                     // Particle color palette
-                '#ff6b9d', '#c44dff', '#6b8cff',
-                '#4dffdb', '#ffdb4d', '#ff4d6b',
-                '#9d4dff', '#4d9dff', '#ff9d4d'
-            ]
-        };
+        // Toggle panel on mobile
+        togglePanel.addEventListener('click', () => {
+            gesturePanel.classList.toggle('visible');
+        });
 
-        // ==================== GLOBAL STATE ====================
-        let canvas, ctx;
-        let particles = [];
-        let currentGesture = 'none';
-        let lastGestureTime = 0;
-        let cameraEnabled = true;
-        let handsDetector = null;
-        let camera = null;
-        let animationFrame;
-        let centerX, centerY;
+        // Resize handling
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-        // ==================== PARTICLE CLASS ====================
-        /**
-         * Particle class representing each floating particle
-         * Handles position, velocity, color, and animation
-         */
+        // Particle System
         class Particle {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
                 this.targetX = x;
                 this.targetY = y;
-                this.originX = x;
-                this.originY = y;
                 this.vx = (Math.random() - 0.5) * 2;
                 this.vy = (Math.random() - 0.5) * 2;
-                this.size = CONFIG.particleBaseSize + Math.random() * CONFIG.particleSizeVariation;
-                this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                this.alpha = 0.6 + Math.random() * 0.4;
-                this.floatOffset = Math.random() * Math.PI * 2;
-                this.floatRadius = Math.random() * CONFIG.floatAmplitude;
+                this.size = Math.random() * 3 + 1;
+                this.baseSize = this.size;
+                this.hue = Math.random() * 60 + 300;
+                this.alpha = 1;
+                this.life = 1;
             }
 
-            /**
-             * Update particle position with smooth interpolation
-             * @param {number} time - Current timestamp for floating animation
-             * @param {string} gesture - Current detected gesture
-             */
-            update(time, gesture) {
-                // Calculate floating offset when idle
-                const floatX = Math.sin(time * CONFIG.floatSpeed + this.floatOffset) * this.floatRadius;
-                const floatY = Math.cos(time * CONFIG.floatSpeed * 0.7 + this.floatOffset) * this.floatRadius;
+            update(mode, handX, handY, targetPoints, scale, rotationX, rotationY) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
 
-                // Smooth interpolation to target position
-                const targetWithFloat = {
-                    x: this.targetX + (gesture === 'none' ? floatX : 0),
-                    y: this.targetY + (gesture === 'none' ? floatY : 0)
-                };
+                switch(mode) {
+                    case 'release':
+                        this.vx += (Math.random() - 0.5) * 0.5;
+                        this.vy += (Math.random() - 0.5) * 0.5;
+                        this.vx *= 0.98;
+                        this.vy *= 0.98;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.alpha = Math.min(1, this.alpha + 0.02);
+                        break;
 
-                // Easing function for smooth movement
-                const ease = CONFIG.transitionSpeed;
-                this.x += (targetWithFloat.x - this.x) * ease;
-                this.y += (targetWithFloat.y - this.y) * ease;
+                    case 'absorb':
+                        const dx = centerX - this.x;
+                        const dy = centerY - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 5) {
+                            this.x += dx * 0.08;
+                            this.y += dy * 0.08;
+                        }
+                        this.alpha = Math.max(0, dist / 300);
+                        break;
 
-                // Apply special effects based on gesture
-                if (gesture === 'swirl') {
-                    const dx = this.x - centerX;
-                    const dy = this.y - centerY;
-                    const angle = 0.02;
-                    const newX = dx * Math.cos(angle) - dy * Math.sin(angle);
-                    const newY = dx * Math.sin(angle) + dy * Math.cos(angle);
-                    this.targetX = centerX + newX;
-                    this.targetY = centerY + newY;
+                    case 'follow':
+                        if (handX !== null && handY !== null) {
+                            const targetX = handX + (Math.random() - 0.5) * 100;
+                            const targetY = handY + (Math.random() - 0.5) * 100;
+                            this.x += (targetX - this.x) * 0.05;
+                            this.y += (targetY - this.y) * 0.05;
+                        }
+                        this.alpha = 1;
+                        break;
+
+                    case 'shape':
+                    case 'heart3d':
+                        if (targetPoints && targetPoints.length > 0) {
+                            const idx = Math.floor(Math.random() * targetPoints.length);
+                            let tx = targetPoints[idx].x;
+                            let ty = targetPoints[idx].y;
+                            let tz = targetPoints[idx].z || 0;
+
+                            if (mode === 'heart3d') {
+                                // Apply 3D rotation
+                                const cosX = Math.cos(rotationX);
+                                const sinX = Math.sin(rotationX);
+                                const cosY = Math.cos(rotationY);
+                                const sinY = Math.sin(rotationY);
+
+                                // Rotate around Y axis
+                                const x1 = tx * cosY - tz * sinY;
+                                const z1 = tx * sinY + tz * cosY;
+
+                                // Rotate around X axis
+                                const y1 = ty * cosX - z1 * sinX;
+                                const z2 = ty * sinX + z1 * cosX;
+
+                                tx = x1 * scale + centerX;
+                                ty = y1 * scale + centerY;
+                                
+                                // Depth-based size
+                                this.size = this.baseSize * (1 + z2 * 0.005);
+                            } else {
+                                tx = tx * scale + centerX;
+                                ty = ty * scale + centerY;
+                            }
+
+                            this.x += (tx - this.x) * 0.08;
+                            this.y += (ty - this.y) * 0.08;
+                        }
+                        this.alpha = 1;
+                        break;
                 }
 
-                if (gesture === 'wave') {
-                    this.targetY += Math.sin(time * 0.003 + this.x * 0.01) * 2;
-                }
+                // Boundary check
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
             }
 
-            /**
-             * Draw the particle on canvas
-             */
             draw() {
+                if (this.alpha <= 0) return;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 70%, ${this.alpha})`;
                 ctx.fill();
-                ctx.globalAlpha = 1;
-
-                // Add glow effect
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = this.color;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-
-            /**
-             * Set new target position for animation
-             */
-            setTarget(x, y) {
-                this.targetX = x;
-                this.targetY = y;
-            }
-
-            /**
-             * Reset to random position
-             */
-            reset() {
-                this.targetX = Math.random() * canvas.width;
-                this.targetY = Math.random() * canvas.height;
             }
         }
 
-        // ==================== SHAPE GENERATORS ====================
-        /**
-         * Generate heart shape coordinates
-         * @returns {Array} Array of {x, y} coordinates
-         */
-        function generateHeartShape() {
+        // Particle system state
+        const particles = [];
+        const PARTICLE_COUNT = 1500;
+        let currentMode = 'release';
+        let handPosition = { x: null, y: null };
+        let targetShapePoints = [];
+        let scale = 1;
+        let rotationX = 0;
+        let rotationY = 0;
+        let lastPinchDist = null;
+        let lastHandX = null;
+        let lastHandY = null;
+
+        // Initialize particles
+        function initParticles() {
+            particles.length = 0;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(new Particle(
+                    centerX + (Math.random() - 0.5) * 100,
+                    centerY + (Math.random() - 0.5) * 100
+                ));
+            }
+        }
+        initParticles();
+
+        // Shape generators
+        function generateHeartPoints(count = 200) {
             const points = [];
-            const scale = Math.min(canvas.width, canvas.height) * 0.25;
-            
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const t = (i / CONFIG.particleCount) * Math.PI * 2;
-                // Parametric heart equation
+            for (let i = 0; i < count; i++) {
+                const t = (i / count) * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
-                
-                // Add some randomness for filled appearance
-                const scatter = Math.random() * 0.3;
-                points.push({
-                    x: centerX + (x * scale / 16) * (1 - scatter),
-                    y: centerY + (y * scale / 16) * (1 - scatter)
-                });
+                points.push({ x: x * 8, y: y * 8 });
             }
             return points;
         }
 
-        /**
-         * Generate text shape coordinates
-         * @param {string} text - Text to display
-         * @returns {Array} Array of {x, y} coordinates
-         */
-        function generateTextShape(text) {
+        function generate3DHeartPoints(count = 300) {
             const points = [];
-            
-            // Create temporary canvas to render text
+            for (let i = 0; i < count; i++) {
+                const u = Math.random() * Math.PI * 2;
+                const v = Math.random() * Math.PI;
+                
+                const x = 16 * Math.pow(Math.sin(u), 3) * Math.sin(v);
+                const y = -(13 * Math.cos(u) - 5 * Math.cos(2*u) - 2 * Math.cos(3*u) - Math.cos(4*u)) * Math.sin(v);
+                const z = 16 * Math.pow(Math.sin(u), 3) * Math.cos(v) * 0.5;
+                
+                points.push({ x: x * 6, y: y * 6, z: z * 6 });
+            }
+            return points;
+        }
+
+        function generateTextPoints(text, fontSize = 60) {
+            const points = [];
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
+            tempCanvas.width = 800;
+            tempCanvas.height = 200;
             
-            // Configure text rendering
-            const fontSize = Math.min(canvas.width / text.length * 1.5, canvas.height * 0.3);
+            tempCtx.fillStyle = 'white';
             tempCtx.font = `bold ${fontSize}px Arial`;
             tempCtx.textAlign = 'center';
             tempCtx.textBaseline = 'middle';
-            tempCtx.fillStyle = 'white';
-            tempCtx.fillText(text, centerX, centerY);
+            tempCtx.fillText(text, 400, 100);
             
-            // Sample pixels from rendered text
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const imageData = tempCtx.getImageData(0, 0, 800, 200);
             const data = imageData.data;
-            const step = 4; // Sample every 4th pixel for performance
             
-            const textPoints = [];
-            for (let y = 0; y < tempCanvas.height; y += step) {
-                for (let x = 0; x < tempCanvas.width; x += step) {
-                    const i = (y * tempCanvas.width + x) * 4;
-                    if (data[i + 3] > 128) { // Check alpha channel
-                        textPoints.push({ x, y });
+            for (let y = 0; y < 200; y += 4) {
+                for (let x = 0; x < 800; x += 4) {
+                    const idx = (y * 800 + x) * 4;
+                    if (data[idx + 3] > 128) {
+                        points.push({ x: x - 400, y: y - 100 });
                     }
                 }
             }
-            
-            // Distribute particles across text points
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                if (textPoints.length > 0) {
-                    const point = textPoints[Math.floor(Math.random() * textPoints.length)];
-                    points.push({
-                        x: point.x + (Math.random() - 0.5) * 4,
-                        y: point.y + (Math.random() - 0.5) * 4
-                    });
-                } else {
-                    points.push({ x: centerX, y: centerY });
+            return points;
+        }
+
+        function generateMiddleFingerPoints() {
+            const points = [];
+            // Finger shape
+            for (let y = 0; y < 120; y += 3) {
+                for (let x = -15; x < 15; x += 3) {
+                    points.push({ x, y: y + 50 });
                 }
             }
-            
-            return points;
-        }
-
-        /**
-         * Generate spread out positions (zoom out effect)
-         */
-        function generateSpreadShape() {
-            const points = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const radius = Math.min(canvas.width, canvas.height) * (0.3 + Math.random() * 0.4);
-                points.push({
-                    x: centerX + Math.cos(angle) * radius,
-                    y: centerY + Math.sin(angle) * radius
-                });
+            // Knuckle/hand base
+            for (let y = 0; y < 40; y += 3) {
+                for (let x = -40; x < 40; x += 3) {
+                    points.push({ x, y: y + 170 });
+                }
             }
             return points;
         }
 
-        /**
-         * Generate gathered positions (zoom in effect)
-         */
-        function generateGatherShape() {
-            const points = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * 80;
-                points.push({
-                    x: centerX + Math.cos(angle) * radius,
-                    y: centerY + Math.sin(angle) * radius
-                });
-            }
-            return points;
-        }
-
-        /**
-         * Generate random scattered positions
-         */
-        function generateRandomShape() {
-            const points = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                points.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height
-                });
-            }
-            return points;
-        }
-
-        // ==================== GESTURE DETECTION ====================
-        /**
-         * Analyze hand landmarks to detect gesture
-         * @param {Array} landmarks - Hand landmark coordinates from MediaPipe
-         * @returns {string} Detected gesture name
-         */
+        // Gesture detection
         function detectGesture(landmarks) {
-            if (!landmarks || landmarks.length === 0) return 'none';
+            if (!landmarks || landmarks.length === 0) return null;
 
             const hand = landmarks[0];
             
-            // Landmark indices for reference:
-            // 0: Wrist, 4: Thumb tip, 8: Index tip, 12: Middle tip
-            // 16: Ring tip, 20: Pinky tip
-            // MCP joints: 5 (index), 9 (middle), 13 (ring), 17 (pinky)
-
-            // Calculate finger extension states
+            // Finger tip and base indices
             const thumbTip = hand[4];
             const indexTip = hand[8];
             const middleTip = hand[12];
             const ringTip = hand[16];
             const pinkyTip = hand[20];
             
-            const indexMCP = hand[5];
-            const middleMCP = hand[9];
-            const ringMCP = hand[13];
-            const pinkyMCP = hand[17];
+            const indexBase = hand[5];
+            const middleBase = hand[9];
+            const ringBase = hand[13];
+            const pinkyBase = hand[17];
+            const thumbBase = hand[2];
+
+            // Calculate finger states (extended or not)
+            const indexExtended = indexTip.y < indexBase.y - 0.05;
+            const middleExtended = middleTip.y < middleBase.y - 0.05;
+            const ringExtended = ringTip.y < ringBase.y - 0.05;
+            const pinkyExtended = pinkyTip.y < pinkyBase.y - 0.05;
+            const thumbExtended = thumbTip.x < thumbBase.x - 0.05 || thumbTip.x > thumbBase.x + 0.05;
+
+            // Pinch detection
+            const pinchDist = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) + 
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
+
+            // Hand center for position tracking
             const wrist = hand[0];
+            handPosition.x = (1 - wrist.x) * canvas.width;
+            handPosition.y = wrist.y * canvas.height;
 
-            // Determine if each finger is extended
-            const indexExtended = indexTip.y < indexMCP.y - 0.05;
-            const middleExtended = middleTip.y < middleMCP.y - 0.05;
-            const ringExtended = ringTip.y < ringMCP.y - 0.05;
-            const pinkyExtended = pinkyTip.y < pinkyMCP.y - 0.05;
-            const thumbExtended = Math.abs(thumbTip.x - wrist.x) > 0.1;
-
-            // Count extended fingers
-            const extendedCount = [indexExtended, middleExtended, ringExtended, pinkyExtended]
-                .filter(Boolean).length;
-
-            // Detect pinch (thumb and index close together)
-            const thumbIndexDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-            if (thumbIndexDist < 0.05 && !middleExtended && !ringExtended) {
-                return 'pinch';
+            // Gesture detection logic
+            
+            // Pinch gesture (thumb and index close together)
+            if (pinchDist < 0.08) {
+                return { type: 'pinch', distance: pinchDist, handX: handPosition.x, handY: handPosition.y };
             }
 
-            // Detect Shaka/Oppa sign (thumb and pinky extended, others folded)
-            if (thumbExtended && pinkyExtended && !indexExtended && !middleExtended && !ringExtended) {
-                return 'oppa';
+            // Fist (all fingers closed)
+            if (!indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+                return { type: 'fist' };
             }
 
-            // Detect peace sign (index and middle extended)
+            // Open palm (all fingers extended)
+            if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
+                return { type: 'open' };
+            }
+
+            // Peace sign (index and middle extended, others closed)
             if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
-                return 'peace';
+                return { type: 'peace' };
             }
 
-            // Detect point up (only index extended)
-            if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
-                return 'point';
+            // Rock sign (index and pinky extended, middle and ring closed)
+            if (indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
+                return { type: 'rock' };
             }
 
-            // Detect open hand (all fingers extended)
-            if (extendedCount >= 4) {
-                return 'open';
+            // Middle finger (only middle extended)
+            if (!indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
+                return { type: 'middle' };
             }
 
-            // Detect fist (no fingers extended)
-            if (extendedCount === 0 && !thumbExtended) {
-                return 'fist';
+            // Finger heart (thumb and index forming heart shape, close but not pinching)
+            if (pinchDist < 0.15 && pinchDist > 0.06 && !middleExtended && !ringExtended && !pinkyExtended) {
+                return { type: 'fingerheart' };
             }
 
-            return 'none';
+            return { type: 'none', handX: handPosition.x, handY: handPosition.y };
         }
 
-        /**
-         * Process detected gesture and update particle targets
-         * @param {string} gesture - Detected gesture name
-         */
-        function processGesture(gesture) {
-            const now = Date.now();
-            
-            // Debounce gesture changes
-            if (gesture !== currentGesture && now - lastGestureTime > CONFIG.gestureDebounce) {
-                currentGesture = gesture;
-                lastGestureTime = now;
-                
-                // Update UI
-                const displayNames = {
-                    'none': 'Waiting...',
-                    'oppa': '🤙 Shaka/Oppa → Heart',
-                    'peace': '✌️ Peace → I LOVE YOU',
-                    'open': '🖐️ Open → Spread',
-                    'fist': '✊ Fist → Gather',
-                    'pinch': '🤏 Pinch → Swirl',
-                    'point': '👆 Point → Wave'
-                };
-                document.getElementById('gestureDisplay').textContent = displayNames[gesture] || 'Waiting...';
+        // MediaPipe Hands setup
+        const hands = new Hands({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }
+        });
 
-                // Generate appropriate shape
-                let targetPoints;
-                switch (gesture) {
-                    case 'oppa':
-                        targetPoints = generateHeartShape();
-                        break;
-                    case 'peace':
-                        targetPoints = generateTextShape('I LOVE YOU');
-                        break;
-                    case 'open':
-                        targetPoints = generateSpreadShape();
-                        break;
-                    case 'fist':
-                        targetPoints = generateGatherShape();
-                        break;
-                    case 'pinch':
-                    case 'point':
-                        // These use continuous effects, keep current positions
-                        return;
-                    default:
-                        targetPoints = generateRandomShape();
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        let gestureHistory = [];
+        const GESTURE_HISTORY_SIZE = 5;
+
+        function onResults(results) {
+            // Draw hand landmarks on video overlay
+            handCtx.save();
+            handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                statusDot.classList.add('active');
+                statusText.textContent = 'Hand detected';
+                
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Draw connections
+                    drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, {
+                        color: '#ff6b9d',
+                        lineWidth: 2
+                    });
+                    // Draw landmarks
+                    drawLandmarks(handCtx, landmarks, {
+                        color: '#ffffff',
+                        lineWidth: 1,
+                        radius: 3
+                    });
                 }
 
-                // Update particle targets
-                particles.forEach((particle, i) => {
-                    if (targetPoints[i]) {
-                        particle.setTarget(targetPoints[i].x, targetPoints[i].y);
+                const gesture = detectGesture(results.multiHandLandmarks);
+                
+                if (gesture) {
+                    gestureHistory.push(gesture.type);
+                    if (gestureHistory.length > GESTURE_HISTORY_SIZE) {
+                        gestureHistory.shift();
                     }
-                });
-            }
-        }
 
-        // ==================== INITIALIZATION ====================
-        /**
-         * Initialize canvas and particles
-         */
-        function initCanvas() {
-            canvas = document.getElementById('particleCanvas');
-            ctx = canvas.getContext('2d');
+                    // Get most common gesture in history for stability
+                    const gestureCounts = {};
+                    gestureHistory.forEach(g => {
+                        gestureCounts[g] = (gestureCounts[g] || 0) + 1;
+                    });
+                    const stableGesture = Object.keys(gestureCounts).reduce((a, b) => 
+                        gestureCounts[a] > gestureCounts[b] ? a : b
+                    );
+
+                    handleGesture({ ...gesture, type: stableGesture });
+                }
+            } else {
+                statusDot.classList.remove('active');
+                statusText.textContent = 'No hand detected';
+                currentMode = 'release';
+                currentGestureDisplay.textContent = '';
+                zoomIndicator.classList.remove('visible');
+            }
             
-            // Set canvas size to window size
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            centerX = canvas.width / 2;
-            centerY = canvas.height / 2;
+            handCtx.restore();
+        }
 
-            // Create particles
-            particles = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                particles.push(new Particle(
-                    Math.random() * canvas.width,
-                    Math.random() * canvas.height
-                ));
+        function handleGesture(gesture) {
+            switch(gesture.type) {
+                case 'open':
+                    currentMode = 'release';
+                    currentGestureDisplay.textContent = '🖐️ Releasing particles...';
+                    targetShapePoints = [];
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'fist':
+                    currentMode = 'absorb';
+                    currentGestureDisplay.textContent = '✊ Absorbing particles...';
+                    targetShapePoints = [];
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'fingerheart':
+                    currentMode = 'shape';
+                    currentGestureDisplay.textContent = '🫰 Finger Heart';
+                    targetShapePoints = generateHeartPoints();
+                    scale = 1;
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'rock':
+                    currentMode = 'shape';
+                    currentGestureDisplay.textContent = '🤟 I LOVE YOU';
+                    targetShapePoints = generateTextPoints('I LOVE YOU', 50);
+                    scale = 1;
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'peace':
+                    currentMode = 'shape';
+                    currentGestureDisplay.textContent = '✌️ Made by Jay';
+                    targetShapePoints = generateTextPoints('Made by Jay', 50);
+                    scale = 1;
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'middle':
+                    currentMode = 'shape';
+                    currentGestureDisplay.textContent = '🖕 PAKYU KARIN BOI';
+                    const textPoints = generateTextPoints('PAKYU KARIN BOI', 40);
+                    const fingerPoints = generateMiddleFingerPoints();
+                    targetShapePoints = [...textPoints, ...fingerPoints];
+                    scale = 1;
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                case 'pinch':
+                    currentMode = 'heart3d';
+                    currentGestureDisplay.textContent = '🤏 3D Heart';
+                    
+                    if (targetShapePoints.length === 0 || !targetShapePoints[0].hasOwnProperty('z')) {
+                        targetShapePoints = generate3DHeartPoints();
+                    }
+
+                    // Calculate zoom based on pinch distance
+                    const pinchDist = gesture.distance;
+                    if (lastPinchDist !== null) {
+                        const delta = (lastPinchDist - pinchDist) * 10;
+                        scale = Math.max(0.3, Math.min(3, scale + delta));
+                    }
+                    lastPinchDist = pinchDist;
+
+                    // Calculate rotation based on hand movement
+                    if (lastHandX !== null && lastHandY !== null) {
+                        const deltaX = (gesture.handX - lastHandX) * 0.01;
+                        const deltaY = (gesture.handY - lastHandY) * 0.01;
+                        rotationY += deltaX;
+                        rotationX += deltaY;
+                    }
+                    lastHandX = gesture.handX;
+                    lastHandY = gesture.handY;
+
+                    // Update zoom indicator
+                    zoomIndicator.classList.add('visible');
+                    zoomValue.textContent = Math.round(scale * 100);
+                    break;
+
+                case 'none':
+                    if (gesture.handX && gesture.handY) {
+                        currentMode = 'follow';
+                        currentGestureDisplay.textContent = '';
+                    }
+                    lastPinchDist = null;
+                    lastHandX = null;
+                    lastHandY = null;
+                    zoomIndicator.classList.remove('visible');
+                    break;
+
+                default:
+                    lastPinchDist = null;
+                    lastHandX = null;
+                    lastHandY = null;
             }
         }
 
-        /**
-         * Initialize MediaPipe Hands detector
-         */
-        async function initHandTracking() {
+        // Animation loop
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (const particle of particles) {
+                particle.update(
+                    currentMode, 
+                    handPosition.x, 
+                    handPosition.y, 
+                    targetShapePoints,
+                    scale,
+                    rotationX,
+                    rotationY
+                );
+                particle.draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Camera setup
+        async function setupCamera() {
             try {
-                handsDetector = new Hands({
-                    locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
                     }
                 });
-
-                handsDetector.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 1,
-                    minDetectionConfidence: 0.7,
-                    minTrackingConfidence: 0.5
+                
+                videoElement.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        handCanvas.width = videoElement.videoWidth;
+                        handCanvas.height = videoElement.videoHeight;
+                        resolve();
+                    };
                 });
 
-                handsDetector.onResults(onHandResults);
-
-                // Initialize camera
-                const videoElement = document.getElementById('webcam');
-                camera = new Camera(videoElement, {
+                const camera = new Camera(videoElement, {
                     onFrame: async () => {
-                        if (cameraEnabled) {
-                            await handsDetector.send({ image: videoElement });
-                        }
+                        await hands.send({ image: videoElement });
                     },
                     width: 640,
                     height: 480
                 });
-
+                
                 await camera.start();
                 
-                // Hide loading overlay
-                document.getElementById('loadingOverlay').classList.add('hidden');
+                loadingOverlay.classList.add('hidden');
+                statusText.textContent = 'Ready';
                 
             } catch (error) {
-                console.error('Error initializing hand tracking:', error);
-                document.querySelector('.loading-text').textContent = 
-                    'Camera access required. Please enable camera and refresh.';
+                console.error('Camera error:', error);
+                loadingOverlay.querySelector('#loadingText').textContent = 
+                    'Camera access denied. Please allow camera access and refresh.';
             }
         }
 
-        /**
-         * Handle MediaPipe hand detection results
-         * @param {Object} results - Detection results from MediaPipe
-         */
-        function onHandResults(results) {
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const gesture = detectGesture(results.multiHandLandmarks);
-                processGesture(gesture);
-            } else {
-                processGesture('none');
-            }
-        }
-
-        // ==================== ANIMATION LOOP ====================
-        /**
-         * Main animation loop
-         * @param {number} timestamp - Current animation timestamp
-         */
-        function animate(timestamp) {
-            // Clear canvas with fade effect for trails
-            ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Update and draw particles
-            particles.forEach(particle => {
-                particle.update(timestamp, currentGesture);
-                particle.draw();
-            });
-
-            // Draw connections between nearby particles
-            drawConnections();
-
-            animationFrame = requestAnimationFrame(animate);
-        }
-
-        /**
-         * Draw lines connecting nearby particles
-         */
-        function drawConnections() {
-            const maxDist = 80;
-            
-            ctx.strokeStyle = 'rgba(100, 150, 255, 0.1)';
-            ctx.lineWidth = 0.5;
-
-            // Only check subset of particles for performance
-            for (let i = 0; i < particles.length; i += 3) {
-                for (let j = i + 1; j < particles.length; j += 3) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < maxDist) {
-                        ctx.globalAlpha = 1 - (dist / maxDist);
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
-                }
-            }
-            ctx.globalAlpha = 1;
-        }
-
-        // ==================== EVENT HANDLERS ====================
-        /**
-         * Handle window resize
-         */
-        function handleResize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            centerX = canvas.width / 2;
-            centerY = canvas.height / 2;
-        }
-
-        /**
-         * Toggle camera on/off
-         */
-        function toggleCamera() {
-            cameraEnabled = !cameraEnabled;
-            const btn = document.getElementById('toggleCamera');
-            const videoContainer = document.getElementById('videoContainer');
-            
-            if (cameraEnabled) {
-                btn.classList.add('active');
-                btn.innerHTML = '<span class="btn-icon">📷</span><span>Camera On</span>';
-                videoContainer.classList.remove('hidden');
-            } else {
-                btn.classList.remove('active');
-                btn.innerHTML = '<span class="btn-icon">📷</span><span>Camera Off</span>';
-                videoContainer.classList.add('hidden');
-                processGesture('none');
-            }
-        }
-
-        // ==================== STARTUP ====================
-        /**
-         * Initialize application on DOM ready
-         */
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize canvas and particles
-            initCanvas();
-            
-            // Start animation
-            animate(0);
-            
-            // Initialize hand tracking
-            initHandTracking();
-            
-            // Event listeners
-            window.addEventListener('resize', handleResize);
-            document.getElementById('toggleCamera').addEventListener('click', toggleCamera);
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'c' || e.key === 'C') {
-                    toggleCamera();
-                }
-                if (e.key === 'r' || e.key === 'R') {
-                    // Reset particles to random positions
-                    const randomPoints = generateRandomShape();
-                    particles.forEach((particle, i) => {
-                        particle.setTarget(randomPoints[i].x, randomPoints[i].y);
-                    });
-                }
-            });
-        });
+        // Initialize
+        setupCamera();
+        animate();
     </script>
 </body>
 </html>
