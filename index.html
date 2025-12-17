@@ -1,4 +1,4 @@
-htmlDownloadCopy code<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -397,9 +397,9 @@ htmlDownloadCopy code<!DOCTYPE html>
     <div class="pinch-indicator" id="pinchIndicator">Pinch: 100%</div>
 
     <script>
-        // Main Application
+        // Main Application - Optimized for performance
         const canvas = document.getElementById('particleCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false });
         const video = document.getElementById('videoElement');
         const handCanvas = document.getElementById('handCanvas');
         const handCtx = handCanvas.getContext('2d');
@@ -430,148 +430,64 @@ htmlDownloadCopy code<!DOCTYPE html>
             gesturePanel.classList.toggle('open');
         });
 
-        // Particle System
-        class Particle {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.targetX = x;
-                this.targetY = y;
-                this.originX = x;
-                this.originY = y;
-                this.vx = (Math.random() - 0.5) * 4;
-                this.vy = (Math.random() - 0.5) * 4;
-                this.size = Math.random() * 3 + 1;
-                this.baseSize = this.size;
-                this.hue = Math.random() * 60 + 220;
-                this.alpha = 1;
-                this.life = 1;
-                this.friction = 0.98;
-                this.ease = 0.08;
-            }
+        // Optimized Particle System using typed arrays
+        const maxParticles = 8000;
+        
+        // Particle data stored in typed arrays for performance
+        const particleData = {
+            x: new Float32Array(maxParticles),
+            y: new Float32Array(maxParticles),
+            vx: new Float32Array(maxParticles),
+            vy: new Float32Array(maxParticles),
+            targetX: new Float32Array(maxParticles),
+            targetY: new Float32Array(maxParticles),
+            size: new Float32Array(maxParticles),
+            hue: new Float32Array(maxParticles),
+            alpha: new Float32Array(maxParticles),
+            targetIdx: new Uint16Array(maxParticles),
+            depth: new Float32Array(maxParticles)
+        };
 
-            update(mode, handX, handY, targetPoints) {
-                switch(mode) {
-                    case 'release':
-                        this.vx += (Math.random() - 0.5) * 0.5;
-                        this.vy += (Math.random() - 0.5) * 0.5;
-                        this.vx *= this.friction;
-                        this.vy *= this.friction;
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        this.alpha = Math.min(1, this.alpha + 0.02);
-                        break;
-
-                    case 'absorb':
-                        const dx = handX - this.x;
-                        const dy = handY - this.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist > 5) {
-                            this.vx += dx * 0.02;
-                            this.vy += dy * 0.02;
-                        }
-                        this.vx *= 0.95;
-                        this.vy *= 0.95;
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        if (dist < 50) {
-                            this.alpha -= 0.03;
-                        }
-                        break;
-
-                    case 'follow':
-                        const fdx = handX - this.x;
-                        const fdy = handY - this.y;
-                        this.x += fdx * 0.05;
-                        this.y += fdy * 0.05;
-                        this.alpha = Math.min(1, this.alpha + 0.02);
-                        break;
-
-                    case 'shape':
-                        if (targetPoints && targetPoints.length > 0) {
-                            const idx = Math.floor(Math.random() * targetPoints.length);
-                            if (!this.targetIdx) this.targetIdx = idx;
-                            const target = targetPoints[this.targetIdx % targetPoints.length];
-                            if (target) {
-                                this.targetX = target.x;
-                                this.targetY = target.y;
-                            }
-                        }
-                        this.x += (this.targetX - this.x) * this.ease;
-                        this.y += (this.targetY - this.y) * this.ease;
-                        this.alpha = Math.min(1, this.alpha + 0.02);
-                        break;
-
-                    case 'shape3d':
-                        if (targetPoints && targetPoints.length > 0) {
-                            if (!this.targetIdx) this.targetIdx = Math.floor(Math.random() * targetPoints.length);
-                            const target = targetPoints[this.targetIdx % targetPoints.length];
-                            if (target) {
-                                this.targetX = target.x;
-                                this.targetY = target.y;
-                                this.size = this.baseSize * (target.z || 1);
-                            }
-                        }
-                        this.x += (this.targetX - this.x) * this.ease;
-                        this.y += (this.targetY - this.y) * this.ease;
-                        this.alpha = Math.min(1, this.alpha + 0.02);
-                        break;
-
-                    default:
-                        this.vx *= this.friction;
-                        this.vy *= this.friction;
-                        this.x += this.vx;
-                        this.y += this.vy;
-                }
-
-                // Boundary wrap
-                if (this.x < 0) this.x = canvas.width;
-                if (this.x > canvas.width) this.x = 0;
-                if (this.y < 0) this.y = canvas.height;
-                if (this.y > canvas.height) this.y = 0;
-            }
-
-            draw() {
-                if (this.alpha <= 0) return;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${this.hue}, 80%, 60%, ${this.alpha})`;
-                ctx.fill();
-            }
-        }
-
-        // Particle manager
-        const particles = [];
-        const maxParticles = 2000;
         let currentMode = 'idle';
-        let handPosition = { x: canvas.width / 2, y: canvas.height / 2 };
+        let handPosition = { x: 0, y: 0 };
         let targetShapePoints = [];
         let currentGesture = 'none';
-        let pinchDistance = 100;
+        let pinchDistance = 0.1;
         let pinchScale = 1;
         let rotation3D = { x: 0, y: 0 };
+        let lastHandPosition = { x: 0.5, y: 0.5 };
 
         // Initialize particles
         function initParticles() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
             for (let i = 0; i < maxParticles; i++) {
-                particles.push(new Particle(
-                    canvas.width / 2 + (Math.random() - 0.5) * 100,
-                    canvas.height / 2 + (Math.random() - 0.5) * 100
-                ));
+                particleData.x[i] = centerX + (Math.random() - 0.5) * 200;
+                particleData.y[i] = centerY + (Math.random() - 0.5) * 200;
+                particleData.vx[i] = (Math.random() - 0.5) * 2;
+                particleData.vy[i] = (Math.random() - 0.5) * 2;
+                particleData.targetX[i] = particleData.x[i];
+                particleData.targetY[i] = particleData.y[i];
+                particleData.size[i] = Math.random() * 1.5 + 0.5;
+                particleData.hue[i] = Math.random() * 60 + 220;
+                particleData.alpha[i] = 1;
+                particleData.targetIdx[i] = i;
+                particleData.depth[i] = 1;
             }
         }
-        initParticles();
 
         // Shape generators
         function generateHeartShape(centerX, centerY, scale = 150) {
             const points = [];
-            for (let i = 0; i < 360; i += 2) {
+            for (let i = 0; i < 360; i += 1) {
                 const angle = (i * Math.PI) / 180;
                 const x = 16 * Math.pow(Math.sin(angle), 3);
                 const y = -(13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle));
                 points.push({
                     x: centerX + x * (scale / 16),
-                    y: centerY + y * (scale / 16)
+                    y: centerY + y * (scale / 16),
+                    z: 1
                 });
             }
             return points;
@@ -579,19 +495,18 @@ htmlDownloadCopy code<!DOCTYPE html>
 
         function generate3DHeartShape(centerX, centerY, scale = 150, rotX = 0, rotY = 0) {
             const points = [];
-            const step = 0.15;
+            const step = 0.12;
+            
+            const cosRX = Math.cos(rotX);
+            const sinRX = Math.sin(rotX);
+            const cosRY = Math.cos(rotY);
+            const sinRY = Math.sin(rotY);
             
             for (let u = 0; u < Math.PI * 2; u += step) {
                 for (let v = 0; v < Math.PI; v += step) {
                     let x = 16 * Math.pow(Math.sin(u), 3) * Math.sin(v);
                     let y = -(13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u)) * Math.sin(v);
                     let z = 10 * Math.cos(v);
-
-                    // Apply rotation
-                    const cosRX = Math.cos(rotX);
-                    const sinRX = Math.sin(rotX);
-                    const cosRY = Math.cos(rotY);
-                    const sinRY = Math.sin(rotY);
 
                     // Rotate around X
                     const y1 = y * cosRX - z * sinRX;
@@ -627,44 +542,153 @@ htmlDownloadCopy code<!DOCTYPE html>
             
             const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
             const points = [];
-            const density = 4;
+            const density = 3;
             
             for (let y = 0; y < tempCanvas.height; y += density) {
                 for (let x = 0; x < tempCanvas.width; x += density) {
                     const index = (y * tempCanvas.width + x) * 4;
                     if (imageData.data[index + 3] > 128) {
-                        points.push({ x, y });
+                        points.push({ x, y, z: 1 });
                     }
                 }
             }
             return points;
         }
 
-        function generateMiddleFingerShape(centerX, centerY) {
-            const points = [];
+        // Update particles - optimized batch processing
+        function updateParticles() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const hx = handPosition.x;
+            const hy = handPosition.y;
+            const pointCount = targetShapePoints.length;
             
-            // Finger body
-            for (let y = 0; y < 120; y += 3) {
-                for (let x = -15; x < 15; x += 3) {
-                    points.push({ x: centerX + x, y: centerY + y });
+            for (let i = 0; i < maxParticles; i++) {
+                let x = particleData.x[i];
+                let y = particleData.y[i];
+                let vx = particleData.vx[i];
+                let vy = particleData.vy[i];
+                let alpha = particleData.alpha[i];
+                
+                switch(currentMode) {
+                    case 'release':
+                        vx += (Math.random() - 0.5) * 0.3;
+                        vy += (Math.random() - 0.5) * 0.3;
+                        vx *= 0.98;
+                        vy *= 0.98;
+                        x += vx;
+                        y += vy;
+                        alpha = Math.min(1, alpha + 0.02);
+                        break;
+
+                    case 'absorb':
+                        const dx = hx - x;
+                        const dy = hy - y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 5) {
+                            vx += dx * 0.015;
+                            vy += dy * 0.015;
+                        }
+                        vx *= 0.96;
+                        vy *= 0.96;
+                        x += vx;
+                        y += vy;
+                        if (dist < 50) {
+                            alpha -= 0.025;
+                        }
+                        break;
+
+                    case 'follow':
+                        const fdx = hx - x;
+                        const fdy = hy - y;
+                        x += fdx * 0.03;
+                        y += fdy * 0.03;
+                        alpha = Math.min(1, alpha + 0.02);
+                        break;
+
+                    case 'shape':
+                    case 'shape3d':
+                        if (pointCount > 0) {
+                            const idx = particleData.targetIdx[i] % pointCount;
+                            const target = targetShapePoints[idx];
+                            if (target) {
+                                x += (target.x - x) * 0.08;
+                                y += (target.y - y) * 0.08;
+                                particleData.depth[i] = target.z || 1;
+                            }
+                        }
+                        alpha = Math.min(1, alpha + 0.02);
+                        break;
+
+                    default:
+                        vx *= 0.98;
+                        vy *= 0.98;
+                        x += vx;
+                        y += vy;
+                }
+
+                // Boundary wrap
+                if (x < 0) x = w;
+                else if (x > w) x = 0;
+                if (y < 0) y = h;
+                else if (y > h) y = 0;
+
+                // Reset dead particles
+                if (alpha <= 0) {
+                    x = w / 2 + (Math.random() - 0.5) * 200;
+                    y = h / 2 + (Math.random() - 0.5) * 200;
+                    alpha = 0.5;
+                    vx = (Math.random() - 0.5) * 2;
+                    vy = (Math.random() - 0.5) * 2;
+                }
+
+                particleData.x[i] = x;
+                particleData.y[i] = y;
+                particleData.vx[i] = vx;
+                particleData.vy[i] = vy;
+                particleData.alpha[i] = alpha;
+            }
+        }
+
+        // Draw particles - optimized batch rendering
+        function drawParticles() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Sort by depth for 3D effect (only when in 3D mode)
+            let indices = new Uint16Array(maxParticles);
+            for (let i = 0; i < maxParticles; i++) indices[i] = i;
+            
+            if (currentMode === 'shape3d') {
+                // Simple insertion sort for mostly sorted data
+                for (let i = 1; i < maxParticles; i++) {
+                    const key = indices[i];
+                    const keyDepth = particleData.depth[key];
+                    let j = i - 1;
+                    while (j >= 0 && particleData.depth[indices[j]] > keyDepth) {
+                        indices[j + 1] = indices[j];
+                        j--;
+                    }
+                    indices[j + 1] = key;
                 }
             }
-            
-            // Finger tip (rounded)
-            for (let angle = 0; angle < Math.PI; angle += 0.2) {
-                const x = Math.cos(angle) * 15;
-                const y = -Math.sin(angle) * 15;
-                points.push({ x: centerX + x, y: centerY + y });
+
+            // Batch draw by similar colors
+            for (let i = 0; i < maxParticles; i++) {
+                const idx = indices[i];
+                const alpha = particleData.alpha[idx];
+                if (alpha <= 0) continue;
+                
+                const x = particleData.x[idx];
+                const y = particleData.y[idx];
+                const size = particleData.size[idx] * particleData.depth[idx];
+                const hue = particleData.hue[idx];
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${alpha})`;
+                ctx.fill();
             }
-            
-            // Hand base
-            for (let y = 120; y < 160; y += 3) {
-                for (let x = -40; x < 40; x += 3) {
-                    points.push({ x: centerX + x, y: centerY + y });
-                }
-            }
-            
-            return points;
         }
 
         // Gesture detection
@@ -682,14 +706,9 @@ htmlDownloadCopy code<!DOCTYPE html>
             const middlePIP = landmarks[10];
             const ringPIP = landmarks[14];
             const pinkyPIP = landmarks[18];
-            
-            const wrist = landmarks[0];
-            const indexMCP = landmarks[5];
-            const middleMCP = landmarks[9];
 
             // Helper functions
             const isFingerExtended = (tip, pip) => tip.y < pip.y - 0.03;
-            const isFingerCurled = (tip, pip) => tip.y > pip.y + 0.02;
             
             const indexExtended = isFingerExtended(indexTip, indexPIP);
             const middleExtended = isFingerExtended(middleTip, middlePIP);
@@ -697,15 +716,16 @@ htmlDownloadCopy code<!DOCTYPE html>
             const pinkyExtended = isFingerExtended(pinkyTip, pinkyPIP);
             const thumbExtended = thumbTip.x < thumbIP.x - 0.03 || thumbTip.x > thumbIP.x + 0.03;
 
-            // Pinch detection (thumb and index close)
+            // Pinch detection (thumb and index close) - REVERSED
             const pinchDist = Math.sqrt(
                 Math.pow(thumbTip.x - indexTip.x, 2) + 
                 Math.pow(thumbTip.y - indexTip.y, 2)
             );
             
-            if (pinchDist < 0.08) {
-                pinchDistance = pinchDist * 1000;
-                pinchScale = Math.max(0.3, Math.min(2, 1 + (0.05 - pinchDist) * 10));
+            if (pinchDist < 0.12 && !middleExtended && !ringExtended && !pinkyExtended) {
+                pinchDistance = pinchDist;
+                // REVERSED: closer pinch = bigger, further = smaller
+                pinchScale = Math.max(0.3, Math.min(2.5, 0.5 + (0.12 - pinchDist) * 15));
                 return 'pinch';
             }
 
@@ -724,7 +744,7 @@ htmlDownloadCopy code<!DOCTYPE html>
                 return 'rock';
             }
 
-            // Finger heart (thumb and index touching, others curled) - check for Korean finger heart
+            // Finger heart (thumb and index touching, others curled)
             const thumbIndexDist = Math.sqrt(
                 Math.pow(thumbTip.x - indexTip.x, 2) + 
                 Math.pow(thumbTip.y - indexTip.y, 2)
@@ -779,6 +799,16 @@ htmlDownloadCopy code<!DOCTYPE html>
             }
         }
 
+        // Assign targets to particles
+        function assignTargets() {
+            const pointCount = targetShapePoints.length;
+            if (pointCount === 0) return;
+            
+            for (let i = 0; i < maxParticles; i++) {
+                particleData.targetIdx[i] = Math.floor(Math.random() * pointCount);
+            }
+        }
+
         // MediaPipe Hands setup
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -791,7 +821,7 @@ htmlDownloadCopy code<!DOCTYPE html>
             minTrackingConfidence: 0.5
         });
 
-        let lastHandPosition = { x: 0.5, y: 0.5 };
+        let previousGesture = 'none';
 
         hands.onResults((results) => {
             handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
@@ -810,7 +840,7 @@ htmlDownloadCopy code<!DOCTYPE html>
                     radius: 3
                 });
 
-                // Get palm center (average of wrist and middle finger MCP)
+                // Get palm center
                 const wrist = landmarks[0];
                 const middleMCP = landmarks[9];
                 const palmX = (wrist.x + middleMCP.x) / 2;
@@ -823,14 +853,17 @@ htmlDownloadCopy code<!DOCTYPE html>
                 // Calculate rotation based on hand movement
                 const deltaX = palmX - lastHandPosition.x;
                 const deltaY = palmY - lastHandPosition.y;
-                rotation3D.y += deltaX * 5;
-                rotation3D.x += deltaY * 5;
+                rotation3D.y += deltaX * 3;
+                rotation3D.x += deltaY * 3;
                 lastHandPosition = { x: palmX, y: palmY };
 
                 // Detect gesture
                 const gesture = detectGesture(landmarks);
                 currentGesture = gesture;
                 updateGestureUI(gesture);
+
+                // Only reassign targets when gesture changes
+                const gestureChanged = gesture !== previousGesture;
 
                 // Set mode and generate shapes based on gesture
                 switch(gesture) {
@@ -842,41 +875,58 @@ htmlDownloadCopy code<!DOCTYPE html>
                         break;
                     case 'finger_heart':
                         currentMode = 'shape';
-                        targetShapePoints = generateHeartShape(canvas.width / 2, canvas.height / 2, 150);
+                        if (gestureChanged) {
+                            targetShapePoints = generateHeartShape(canvas.width / 2, canvas.height / 2, 180);
+                            assignTargets();
+                        }
                         break;
                     case 'rock':
                         currentMode = 'shape';
-                        targetShapePoints = generateTextShape('I LOVE YOU', canvas.width / 2, canvas.height / 2, 60);
+                        if (gestureChanged) {
+                            targetShapePoints = generateTextShape('I LOVE YOU', canvas.width / 2, canvas.height / 2, 70);
+                            assignTargets();
+                        }
                         break;
                     case 'peace':
                         currentMode = 'shape';
-                        targetShapePoints = generateTextShape('Made by Jay', canvas.width / 2, canvas.height / 2, 70);
+                        if (gestureChanged) {
+                            targetShapePoints = generateTextShape('Made by Jay', canvas.width / 2, canvas.height / 2, 80);
+                            assignTargets();
+                        }
                         break;
                     case 'middle_finger':
                         currentMode = 'shape';
-                        const textPoints = generateTextShape('PAKYU KARIN BOI', canvas.width / 2, canvas.height / 2 - 80, 50);
-                        const fingerPoints = generateMiddleFingerShape(canvas.width / 2, canvas.height / 2 + 60);
-                        targetShapePoints = [...textPoints, ...fingerPoints];
+                        if (gestureChanged) {
+                            // Only text, no finger shape
+                            targetShapePoints = generateTextShape('PAKYU KARIN BOI', canvas.width / 2, canvas.height / 2, 60);
+                            assignTargets();
+                        }
                         break;
                     case 'pinch':
                         currentMode = 'shape3d';
+                        // Always update 3D heart for rotation/scale
                         targetShapePoints = generate3DHeartShape(
                             canvas.width / 2, 
                             canvas.height / 2, 
-                            150 * pinchScale,
+                            180 * pinchScale,
                             rotation3D.x,
                             rotation3D.y
                         );
+                        if (gestureChanged) {
+                            assignTargets();
+                        }
                         break;
                     default:
                         currentMode = 'follow';
                 }
 
+                previousGesture = gesture;
                 statusIndicator.classList.add('active');
                 statusText.textContent = 'Hand detected';
             } else {
                 currentMode = 'idle';
                 currentGesture = 'none';
+                previousGesture = 'none';
                 updateGestureUI('none');
                 statusIndicator.classList.remove('active');
                 statusText.textContent = 'Show your hand';
@@ -912,47 +962,29 @@ htmlDownloadCopy code<!DOCTYPE html>
                 loadingOverlay.querySelector('.loading-text').textContent = 'Please allow camera access';
             }
         }
+
+        // Initialize
+        initParticles();
         startCamera();
 
-        // Animation loop
-        function animate() {
-            ctx.fillStyle = 'rgba(10, 10, 15, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Animation loop - optimized with requestAnimationFrame
+        let lastTime = 0;
+        const targetFPS = 60;
+        const frameInterval = 1000 / targetFPS;
 
-            // Update and draw particles
-            particles.forEach(particle => {
-                particle.update(currentMode, handPosition.x, handPosition.y, targetShapePoints);
-                particle.draw();
-            });
-
-            // Reset dead particles
-            particles.forEach((particle, index) => {
-                if (particle.alpha <= 0) {
-                    particles[index] = new Particle(
-                        canvas.width / 2 + (Math.random() - 0.5) * 200,
-                        canvas.height / 2 + (Math.random() - 0.5) * 200
-                    );
-                }
-            });
-
+        function animate(currentTime) {
             requestAnimationFrame(animate);
-        }
-        animate();
-
-        // Add glow effect
-        function drawGlow() {
-            const gradient = ctx.createRadialGradient(
-                handPosition.x, handPosition.y, 0,
-                handPosition.x, handPosition.y, 100
-            );
-            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
-            gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
             
-            ctx.beginPath();
-            ctx.arc(handPosition.x, handPosition.y, 100, 0, Math.PI * 2);
-            ctx.fillStyle = gradient;
-            ctx.fill();
+            const deltaTime = currentTime - lastTime;
+            if (deltaTime < frameInterval) return;
+            
+            lastTime = currentTime - (deltaTime % frameInterval);
+            
+            updateParticles();
+            drawParticles();
         }
+        
+        requestAnimationFrame(animate);
     </script>
 </body>
 </html>
