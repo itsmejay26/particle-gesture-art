@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+htmlDownloadCopy code<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gesture Particle Universe</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gesture Particle Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,251 +14,272 @@
             box-sizing: border-box;
         }
 
-        html, body {
-            overflow: hidden;
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
         body {
-            background: radial-gradient(ellipse at center, #0d0d1a 0%, #000000 100%);
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            min-height: 100vh;
-            min-height: 100dvh;
+            background: #0a0a0f;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
         }
 
         #particleCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        #videoContainer {
-            position: fixed;
-            bottom: 16px;
-            right: 16px;
-            z-index: 20;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
-            background: #000;
-        }
-
-        #videoWrapper {
-            position: relative;
-            width: 200px;
-            height: 150px;
-        }
-
-        #webcam, #overlayCanvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            z-index: 2;
         }
 
-        #webcam {
-            transform: scaleX(-1);
-        }
-
-        #overlayCanvas {
-            transform: scaleX(-1);
-            pointer-events: none;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        #gesturePanel {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 20;
-            background: rgba(12, 12, 24, 0.9);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 16px;
-            color: #fff;
-            max-width: 280px;
+        .video-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 240px;
+            height: 180px;
+            border-radius: 12px;
+            overflow: hidden;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
         }
 
-        #gesturePanel h2 {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: rgba(255, 255, 255, 0.5);
+        @media (max-width: 768px) {
+            .video-container {
+                width: 160px;
+                height: 120px;
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+
+        #videoElement {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        #handCanvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+        }
+
+        .gesture-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 15, 25, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 280px;
+            transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .gesture-panel {
+                top: 10px;
+                left: 10px;
+                padding: 12px;
+                max-width: 200px;
+                font-size: 12px;
+            }
+        }
+
+        .gesture-panel h3 {
+            color: #fff;
+            font-size: 14px;
             margin-bottom: 12px;
-            font-weight: 500;
-        }
-
-        #currentGesture {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            padding: 12px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
-            border-radius: 10px;
-            text-align: center;
-            min-height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
         }
 
         .gesture-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            font-size: 11px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             transition: background 0.2s;
         }
 
-        .gesture-item:hover {
-            background: rgba(255, 255, 255, 0.08);
+        .gesture-item:last-child {
+            border-bottom: none;
         }
 
         .gesture-item.active {
-            background: rgba(99, 102, 241, 0.3);
-            border: 1px solid rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            padding-left: 8px;
+            margin-left: -8px;
+            padding-right: 8px;
         }
 
         .gesture-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
             font-size: 16px;
-            width: 24px;
-            text-align: center;
-            flex-shrink: 0;
         }
 
-        .gesture-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            overflow: hidden;
+        .gesture-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
         }
 
         .gesture-name {
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.9);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .gesture-effect {
-            font-size: 9px;
-            color: rgba(255, 255, 255, 0.4);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #controls {
-            position: fixed;
-            bottom: 16px;
-            left: 16px;
-            z-index: 20;
-            display: flex;
-            gap: 8px;
-        }
-
-        .control-btn {
-            background: rgba(12, 12, 24, 0.9);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 600;
             color: #fff;
-            padding: 12px 16px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .status-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 15, 25, 0.85);
+            backdrop-filter: blur(10px);
             border-radius: 12px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
+            padding: 12px 20px;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
+            gap: 12px;
         }
 
-        .control-btn:hover {
-            background: rgba(30, 30, 50, 0.95);
-            transform: translateY(-2px);
+        @media (max-width: 768px) {
+            .status-bar {
+                top: auto;
+                bottom: 140px;
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 11px;
+            }
         }
 
-        .control-btn.active {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
-            border-color: rgba(99, 102, 241, 0.5);
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s infinite;
         }
 
-        #pinchIndicator {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 15;
-            background: rgba(12, 12, 24, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            padding: 16px 28px;
-            border-radius: 50px;
+        .status-indicator.active {
+            background: #22c55e;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
             color: #fff;
-            font-size: 18px;
-            font-weight: 600;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
         }
 
-        #pinchIndicator.visible {
+        .current-gesture {
+            position: absolute;
+            bottom: 220px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .current-gesture.visible {
             opacity: 1;
         }
 
-        #loadingScreen {
-            position: fixed;
+        @media (max-width: 768px) {
+            .current-gesture {
+                bottom: 150px;
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+        }
+
+        .toggle-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(15, 15, 25, 0.85);
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 11;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .toggle-panel {
+                display: flex;
+            }
+            .gesture-panel {
+                transform: translateX(-120%);
+            }
+            .gesture-panel.open {
+                transform: translateX(0);
+            }
+        }
+
+        .loading-overlay {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(ellipse at center, #0d0d1a 0%, #000000 100%);
+            background: #0a0a0f;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 100;
-            transition: opacity 0.5s;
+            transition: opacity 0.5s ease;
         }
 
-        #loadingScreen.hidden {
+        .loading-overlay.hidden {
             opacity: 0;
             pointer-events: none;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
+        .loader {
+            width: 60px;
+            height: 60px;
             border: 3px solid rgba(99, 102, 241, 0.2);
             border-top-color: #6366f1;
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
@@ -266,984 +287,672 @@
         }
 
         .loading-text {
+            color: #fff;
             margin-top: 20px;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
-            letter-spacing: 0.5px;
+            font-size: 16px;
+            opacity: 0.8;
         }
 
-        #instructions {
-            position: fixed;
-            bottom: 180px;
-            right: 16px;
-            z-index: 15;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 11px;
-            text-align: right;
-            max-width: 200px;
-            line-height: 1.5;
+        .pinch-indicator {
+            position: absolute;
+            bottom: 280px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.85);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .pinch-indicator.visible {
+            opacity: 1;
         }
 
         @media (max-width: 768px) {
-            #gesturePanel {
-                top: auto;
-                bottom: 180px;
-                left: 8px;
-                right: 8px;
-                max-width: none;
-                padding: 12px;
-            }
-
-            .gesture-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 4px;
-            }
-
-            .gesture-item {
-                padding: 6px;
-                flex-direction: column;
-                text-align: center;
-                gap: 4px;
-            }
-
-            .gesture-info {
-                align-items: center;
-            }
-
-            .gesture-effect {
-                display: none;
-            }
-
-            #videoWrapper {
-                width: 140px;
-                height: 105px;
-            }
-
-            #videoContainer {
-                bottom: 8px;
-                right: 8px;
-            }
-
-            #controls {
-                bottom: 8px;
-                left: 8px;
-            }
-
-            .control-btn {
-                padding: 10px 12px;
-                font-size: 12px;
-            }
-
-            #instructions {
-                display: none;
-            }
-
-            #currentGesture {
-                font-size: 16px;
-                padding: 8px;
-                margin-bottom: 10px;
-            }
-        }
-
-        @media (max-height: 600px) and (orientation: landscape) {
-            #gesturePanel {
-                max-height: calc(100vh - 32px);
-                overflow-y: auto;
+            .pinch-indicator {
+                bottom: 200px;
+                font-size: 11px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div id="loadingScreen">
-        <div class="spinner"></div>
-        <p class="loading-text">Initializing Hand Tracking...</p>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader"></div>
+        <div class="loading-text">Initializing hand tracking...</div>
     </div>
 
-    <!-- Main Canvas -->
     <canvas id="particleCanvas"></canvas>
 
-    <!-- Pinch Indicator -->
-    <div id="pinchIndicator">100%</div>
-
-    <!-- Video Feed with Hand Overlay -->
-    <div id="videoContainer">
-        <div id="videoWrapper">
-            <video id="webcam" autoplay playsinline muted></video>
-            <canvas id="overlayCanvas"></canvas>
-        </div>
+    <div class="video-container">
+        <video id="videoElement" autoplay playsinline></video>
+        <canvas id="handCanvas"></canvas>
     </div>
 
-    <!-- Gesture Panel -->
-    <div id="gesturePanel">
-        <h2>Current Gesture</h2>
-        <div id="currentGesture">👋 Waiting...</div>
-        <h2>Gesture Guide</h2>
-        <div class="gesture-grid">
-            <div class="gesture-item" data-gesture="open">
-                <span class="gesture-icon">🖐️</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Open</span>
-                    <span class="gesture-effect">Release</span>
-                </div>
+    <button class="toggle-panel" id="togglePanel">☰</button>
+
+    <div class="gesture-panel" id="gesturePanel">
+        <h3>Gestures</h3>
+        <div class="gesture-item" data-gesture="open_palm">
+            <div class="gesture-icon">✋</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Open Palm</span>
+                Release particles
             </div>
-            <div class="gesture-item" data-gesture="fist">
-                <span class="gesture-icon">✊</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Fist</span>
-                    <span class="gesture-effect">Absorb</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="fist">
+            <div class="gesture-icon">✊</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Closed Fist</span>
+                Absorb particles
             </div>
-            <div class="gesture-item" data-gesture="fingerHeart">
-                <span class="gesture-icon">🫰</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Finger Heart</span>
-                    <span class="gesture-effect">Heart</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="finger_heart">
+            <div class="gesture-icon">🫰</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Finger Heart</span>
+                Heart shape
             </div>
-            <div class="gesture-item" data-gesture="rock">
-                <span class="gesture-icon">🤘</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Rock</span>
-                    <span class="gesture-effect">I LOVE YOU</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="rock">
+            <div class="gesture-icon">🤘</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Rock Sign</span>
+                "I LOVE YOU"
             </div>
-            <div class="gesture-item" data-gesture="peace">
-                <span class="gesture-icon">✌️</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Peace</span>
-                    <span class="gesture-effect">Made by Jay</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="peace">
+            <div class="gesture-icon">✌️</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Peace Sign</span>
+                "Made by Jay"
             </div>
-            <div class="gesture-item" data-gesture="middle">
-                <span class="gesture-icon">🖕</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Middle</span>
-                    <span class="gesture-effect">Special</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="middle_finger">
+            <div class="gesture-icon">🖕</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Middle Finger</span>
+                Special message
             </div>
-            <div class="gesture-item" data-gesture="pinch">
-                <span class="gesture-icon">🤏</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Pinch</span>
-                    <span class="gesture-effect">3D Heart</span>
-                </div>
-            </div>
-            <div class="gesture-item" data-gesture="follow">
-                <span class="gesture-icon">👆</span>
-                <div class="gesture-info">
-                    <span class="gesture-name">Move</span>
-                    <span class="gesture-effect">Follow</span>
-                </div>
+        </div>
+        <div class="gesture-item" data-gesture="pinch">
+            <div class="gesture-icon">🤏</div>
+            <div class="gesture-text">
+                <span class="gesture-name">Pinch</span>
+                3D Heart zoom
             </div>
         </div>
     </div>
 
-    <!-- Controls -->
-    <div id="controls">
-        <button id="toggleCamera" class="control-btn active">
-            <span>📷</span>
-            <span>Camera</span>
-        </button>
-        <button id="togglePanel" class="control-btn active">
-            <span>📋</span>
-            <span>Panel</span>
-        </button>
+    <div class="status-bar">
+        <div class="status-indicator" id="statusIndicator"></div>
+        <span class="status-text" id="statusText">Waiting for camera...</span>
     </div>
 
-    <!-- Instructions -->
-    <div id="instructions">
-        Move hand to control particles<br>
-        Pinch to create 3D heart
-    </div>
+    <div class="current-gesture" id="currentGesture">No gesture</div>
+    <div class="pinch-indicator" id="pinchIndicator">Pinch: 100%</div>
 
     <script>
-        /**
-         * Gesture Particle Universe
-         * Interactive particle system controlled by hand gestures
-         * Optimized for performance with WebGL-style rendering
-         */
+        // Main Application
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('videoElement');
+        const handCanvas = document.getElementById('handCanvas');
+        const handCtx = handCanvas.getContext('2d');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const currentGestureEl = document.getElementById('currentGesture');
+        const pinchIndicator = document.getElementById('pinchIndicator');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const togglePanel = document.getElementById('togglePanel');
+        const gesturePanel = document.getElementById('gesturePanel');
 
-        // ==================== CONFIGURATION ====================
-        const CONFIG = {
-            particleCount: 600,
-            particleSize: 2.5,
-            transitionSpeed: 0.08,
-            followSpeed: 0.12,
-            colors: ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'],
-            heartColors: ['#ff1744', '#ff4569', '#ff6b8a', '#ff8fab', '#ffb3c6'],
-            pinchMinDist: 0.03,
-            pinchMaxDist: 0.25,
-            rotationSensitivity: 2.5
-        };
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            handCanvas.width = 240;
+            handCanvas.height = 180;
+            if (window.innerWidth <= 768) {
+                handCanvas.width = 160;
+                handCanvas.height = 120;
+            }
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-        // ==================== GLOBAL STATE ====================
-        let canvas, ctx, overlayCanvas, overlayCtx;
-        let particles = [];
-        let currentGesture = 'none';
-        let prevGesture = 'none';
-        let handPosition = { x: 0.5, y: 0.5 };
-        let prevHandPosition = { x: 0.5, y: 0.5 };
-        let pinchDistance = 0.15;
-        let heart3DRotation = { x: 0, y: 0 };
-        let targetRotation = { x: 0, y: 0 };
-        let cameraEnabled = true;
-        let panelVisible = true;
-        let isAbsorbing = false;
-        let absorbProgress = 0;
-        let handsDetector = null;
-        let camera = null;
-        let width, height, centerX, centerY;
-        let lastFrameTime = 0;
-        let animationId;
+        // Toggle panel on mobile
+        togglePanel.addEventListener('click', () => {
+            gesturePanel.classList.toggle('open');
+        });
 
-        // ==================== PARTICLE CLASS ====================
+        // Particle System
         class Particle {
-            constructor() {
-                this.reset();
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-            }
-
-            reset() {
-                this.x = centerX;
-                this.y = centerY;
-                this.z = 0;
-                this.targetX = Math.random() * width;
-                this.targetY = Math.random() * height;
-                this.targetZ = 0;
-                this.vx = 0;
-                this.vy = 0;
-                this.size = CONFIG.particleSize * (0.5 + Math.random() * 0.5);
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.originX = x;
+                this.originY = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.size = Math.random() * 3 + 1;
                 this.baseSize = this.size;
-                this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                this.alpha = 0.7 + Math.random() * 0.3;
+                this.hue = Math.random() * 60 + 220;
+                this.alpha = 1;
                 this.life = 1;
+                this.friction = 0.98;
+                this.ease = 0.08;
             }
 
-            update(gesture, handX, handY, deltaTime) {
-                const speed = CONFIG.transitionSpeed * (deltaTime / 16);
-                
-                // Smooth movement to target
-                this.x += (this.targetX - this.x) * speed;
-                this.y += (this.targetY - this.y) * speed;
-                this.z += (this.targetZ - this.z) * speed;
+            update(mode, handX, handY, targetPoints) {
+                switch(mode) {
+                    case 'release':
+                        this.vx += (Math.random() - 0.5) * 0.5;
+                        this.vy += (Math.random() - 0.5) * 0.5;
+                        this.vx *= this.friction;
+                        this.vy *= this.friction;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        this.alpha = Math.min(1, this.alpha + 0.02);
+                        break;
 
-                // Size based on Z depth for 3D effect
-                const depthScale = 1 + this.z * 0.003;
-                this.size = this.baseSize * Math.max(0.3, depthScale);
+                    case 'absorb':
+                        const dx = handX - this.x;
+                        const dy = handY - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 5) {
+                            this.vx += dx * 0.02;
+                            this.vy += dy * 0.02;
+                        }
+                        this.vx *= 0.95;
+                        this.vy *= 0.95;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        if (dist < 50) {
+                            this.alpha -= 0.03;
+                        }
+                        break;
 
-                // Update alpha based on life
-                if (gesture === 'fist' && isAbsorbing) {
-                    this.alpha = Math.max(0, this.life * 0.8);
+                    case 'follow':
+                        const fdx = handX - this.x;
+                        const fdy = handY - this.y;
+                        this.x += fdx * 0.05;
+                        this.y += fdy * 0.05;
+                        this.alpha = Math.min(1, this.alpha + 0.02);
+                        break;
+
+                    case 'shape':
+                        if (targetPoints && targetPoints.length > 0) {
+                            const idx = Math.floor(Math.random() * targetPoints.length);
+                            if (!this.targetIdx) this.targetIdx = idx;
+                            const target = targetPoints[this.targetIdx % targetPoints.length];
+                            if (target) {
+                                this.targetX = target.x;
+                                this.targetY = target.y;
+                            }
+                        }
+                        this.x += (this.targetX - this.x) * this.ease;
+                        this.y += (this.targetY - this.y) * this.ease;
+                        this.alpha = Math.min(1, this.alpha + 0.02);
+                        break;
+
+                    case 'shape3d':
+                        if (targetPoints && targetPoints.length > 0) {
+                            if (!this.targetIdx) this.targetIdx = Math.floor(Math.random() * targetPoints.length);
+                            const target = targetPoints[this.targetIdx % targetPoints.length];
+                            if (target) {
+                                this.targetX = target.x;
+                                this.targetY = target.y;
+                                this.size = this.baseSize * (target.z || 1);
+                            }
+                        }
+                        this.x += (this.targetX - this.x) * this.ease;
+                        this.y += (this.targetY - this.y) * this.ease;
+                        this.alpha = Math.min(1, this.alpha + 0.02);
+                        break;
+
+                    default:
+                        this.vx *= this.friction;
+                        this.vy *= this.friction;
+                        this.x += this.vx;
+                        this.y += this.vy;
                 }
+
+                // Boundary wrap
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
             }
 
             draw() {
                 if (this.alpha <= 0) return;
-                
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = `hsla(${this.hue}, 80%, 60%, ${this.alpha})`;
                 ctx.fill();
             }
-
-            setTarget(x, y, z = 0) {
-                this.targetX = x;
-                this.targetY = y;
-                this.targetZ = z;
-            }
         }
 
-        // ==================== SHAPE GENERATORS ====================
-        
-        /**
-         * Generate 2D heart shape points
-         */
-        function generateHeart2D(scale = 1) {
+        // Particle manager
+        const particles = [];
+        const maxParticles = 2000;
+        let currentMode = 'idle';
+        let handPosition = { x: canvas.width / 2, y: canvas.height / 2 };
+        let targetShapePoints = [];
+        let currentGesture = 'none';
+        let pinchDistance = 100;
+        let pinchScale = 1;
+        let rotation3D = { x: 0, y: 0 };
+
+        // Initialize particles
+        function initParticles() {
+            for (let i = 0; i < maxParticles; i++) {
+                particles.push(new Particle(
+                    canvas.width / 2 + (Math.random() - 0.5) * 100,
+                    canvas.height / 2 + (Math.random() - 0.5) * 100
+                ));
+            }
+        }
+        initParticles();
+
+        // Shape generators
+        function generateHeartShape(centerX, centerY, scale = 150) {
             const points = [];
-            const baseScale = Math.min(width, height) * 0.22 * scale;
-            
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const t = (i / CONFIG.particleCount) * Math.PI * 2;
-                const x = 16 * Math.pow(Math.sin(t), 3);
-                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
-                
-                const scatter = Math.random() * 0.4;
+            for (let i = 0; i < 360; i += 2) {
+                const angle = (i * Math.PI) / 180;
+                const x = 16 * Math.pow(Math.sin(angle), 3);
+                const y = -(13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle));
                 points.push({
-                    x: centerX + (x * baseScale / 16) * (1 - scatter),
-                    y: centerY + (y * baseScale / 16) * (1 - scatter),
-                    z: 0
+                    x: centerX + x * (scale / 16),
+                    y: centerY + y * (scale / 16)
                 });
             }
             return points;
         }
 
-        /**
-         * Generate 3D heart shape with rotation
-         */
-        function generate3DHeart(scale, rotX, rotY) {
+        function generate3DHeartShape(centerX, centerY, scale = 150, rotX = 0, rotY = 0) {
             const points = [];
-            const baseScale = Math.min(width, height) * 0.18 * scale;
+            const step = 0.15;
             
-            const cosX = Math.cos(rotX);
-            const sinX = Math.sin(rotX);
-            const cosY = Math.cos(rotY);
-            const sinY = Math.sin(rotY);
+            for (let u = 0; u < Math.PI * 2; u += step) {
+                for (let v = 0; v < Math.PI; v += step) {
+                    let x = 16 * Math.pow(Math.sin(u), 3) * Math.sin(v);
+                    let y = -(13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u)) * Math.sin(v);
+                    let z = 10 * Math.cos(v);
 
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                // Spherical distribution on heart surface
-                const u = Math.random() * Math.PI * 2;
-                const v = Math.random() * Math.PI;
-                const r = Math.random() * 0.3 + 0.7;
+                    // Apply rotation
+                    const cosRX = Math.cos(rotX);
+                    const sinRX = Math.sin(rotX);
+                    const cosRY = Math.cos(rotY);
+                    const sinRY = Math.sin(rotY);
 
-                // Heart parametric equations
-                const t = u;
-                let hx = 16 * Math.pow(Math.sin(t), 3) * r;
-                let hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * r;
-                let hz = Math.sin(v) * 8 * r * Math.sin(t);
+                    // Rotate around X
+                    const y1 = y * cosRX - z * sinRX;
+                    const z1 = y * sinRX + z * cosRX;
 
-                // Apply rotations
-                let y1 = hy * cosX - hz * sinX;
-                let z1 = hy * sinX + hz * cosX;
-                let x2 = hx * cosY + z1 * sinY;
-                let z2 = -hx * sinY + z1 * cosY;
+                    // Rotate around Y
+                    const x2 = x * cosRY + z1 * sinRY;
+                    const z2 = -x * sinRY + z1 * cosRY;
 
-                points.push({
-                    x: centerX + x2 * baseScale / 16,
-                    y: centerY + y1 * baseScale / 16,
-                    z: z2 * 3
-                });
+                    const perspective = 300 / (300 + z2);
+                    
+                    points.push({
+                        x: centerX + x2 * (scale / 16) * perspective,
+                        y: centerY + y1 * (scale / 16) * perspective,
+                        z: perspective
+                    });
+                }
             }
             return points;
         }
 
-        /**
-         * Generate text shape from string
-         */
-        function generateText(text, offsetY = 0) {
-            const points = [];
+        function generateTextShape(text, centerX, centerY, fontSize = 80) {
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
             
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            
-            const fontSize = Math.min(width / (text.length * 0.6), height * 0.15);
-            tempCtx.font = `bold ${fontSize}px Arial, sans-serif`;
+            tempCtx.font = `bold ${fontSize}px Arial`;
             tempCtx.textAlign = 'center';
             tempCtx.textBaseline = 'middle';
-            tempCtx.fillStyle = 'white';
-            tempCtx.fillText(text, width / 2, height / 2 + offsetY);
+            tempCtx.fillStyle = '#fff';
+            tempCtx.fillText(text, centerX, centerY);
             
-            const imageData = tempCtx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const textPoints = [];
-            const step = Math.max(3, Math.floor(Math.min(width, height) / 200));
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const points = [];
+            const density = 4;
             
-            for (let y = 0; y < height; y += step) {
-                for (let x = 0; x < width; x += step) {
-                    const i = (y * width + x) * 4;
-                    if (data[i + 3] > 100) {
-                        textPoints.push({ x, y, z: 0 });
+            for (let y = 0; y < tempCanvas.height; y += density) {
+                for (let x = 0; x < tempCanvas.width; x += density) {
+                    const index = (y * tempCanvas.width + x) * 4;
+                    if (imageData.data[index + 3] > 128) {
+                        points.push({ x, y });
                     }
                 }
             }
+            return points;
+        }
+
+        function generateMiddleFingerShape(centerX, centerY) {
+            const points = [];
             
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                if (textPoints.length > 0) {
-                    const pt = textPoints[Math.floor(Math.random() * textPoints.length)];
-                    points.push({
-                        x: pt.x + (Math.random() - 0.5) * 3,
-                        y: pt.y + (Math.random() - 0.5) * 3,
-                        z: 0
-                    });
-                } else {
-                    points.push({ x: centerX, y: centerY, z: 0 });
+            // Finger body
+            for (let y = 0; y < 120; y += 3) {
+                for (let x = -15; x < 15; x += 3) {
+                    points.push({ x: centerX + x, y: centerY + y });
+                }
+            }
+            
+            // Finger tip (rounded)
+            for (let angle = 0; angle < Math.PI; angle += 0.2) {
+                const x = Math.cos(angle) * 15;
+                const y = -Math.sin(angle) * 15;
+                points.push({ x: centerX + x, y: centerY + y });
+            }
+            
+            // Hand base
+            for (let y = 120; y < 160; y += 3) {
+                for (let x = -40; x < 40; x += 3) {
+                    points.push({ x: centerX + x, y: centerY + y });
                 }
             }
             
             return points;
         }
 
-        /**
-         * Generate middle finger shape
-         */
-        function generateMiddleFinger() {
-            const points = [];
-            const fingerWidth = Math.min(width, height) * 0.06;
-            const fingerHeight = Math.min(width, height) * 0.25;
-            const baseWidth = Math.min(width, height) * 0.15;
-            const baseHeight = Math.min(width, height) * 0.12;
-            const startY = centerY + height * 0.15;
-            
-            for (let i = 0; i < Math.floor(CONFIG.particleCount * 0.4); i++) {
-                // Finger
-                const fx = centerX + (Math.random() - 0.5) * fingerWidth;
-                const fy = startY - Math.random() * fingerHeight;
-                points.push({ x: fx, y: fy, z: 0 });
-            }
-            
-            for (let i = 0; i < Math.floor(CONFIG.particleCount * 0.3); i++) {
-                // Palm base
-                const bx = centerX + (Math.random() - 0.5) * baseWidth;
-                const by = startY + Math.random() * baseHeight;
-                points.push({ x: bx, y: by, z: 0 });
-            }
-            
-            // Fill remaining with random spread
-            while (points.length < CONFIG.particleCount) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 30;
-                points.push({
-                    x: centerX + Math.cos(angle) * dist,
-                    y: startY + Math.sin(angle) * dist,
-                    z: 0
-                });
-            }
-            
-            return points;
-        }
-
-        /**
-         * Generate explosion pattern from center
-         */
-        function generateExplosion() {
-            const points = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * Math.min(width, height) * 0.45;
-                points.push({
-                    x: centerX + Math.cos(angle) * dist,
-                    y: centerY + Math.sin(angle) * dist,
-                    z: 0
-                });
-            }
-            return points;
-        }
-
-        /**
-         * Generate gather pattern to center
-         */
-        function generateGather() {
-            const points = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 40;
-                points.push({
-                    x: centerX + Math.cos(angle) * dist,
-                    y: centerY + Math.sin(angle) * dist,
-                    z: 0
-                });
-            }
-            return points;
-        }
-
-        /**
-         * Generate follow pattern around hand
-         */
-        function generateFollow(hx, hy) {
-            const points = [];
-            const screenX = hx * width;
-            const screenY = hy * height;
-            
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 100 + 20;
-                points.push({
-                    x: screenX + Math.cos(angle) * dist,
-                    y: screenY + Math.sin(angle) * dist,
-                    z: 0
-                });
-            }
-            return points;
-        }
-
-        // ==================== GESTURE DETECTION ====================
-        
-        /**
-         * Detect gesture from hand landmarks
-         */
+        // Gesture detection
         function detectGesture(landmarks) {
-            if (!landmarks || landmarks.length === 0) return { gesture: 'none', pinchDist: 0 };
+            if (!landmarks || landmarks.length < 21) return 'none';
+
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+            const ringTip = landmarks[16];
+            const pinkyTip = landmarks[20];
             
-            const hand = landmarks[0];
+            const thumbIP = landmarks[3];
+            const indexPIP = landmarks[6];
+            const middlePIP = landmarks[10];
+            const ringPIP = landmarks[14];
+            const pinkyPIP = landmarks[18];
             
-            // Key landmarks
-            const wrist = hand[0];
-            const thumbTip = hand[4];
-            const thumbIP = hand[3];
-            const indexTip = hand[8];
-            const indexPIP = hand[6];
-            const indexMCP = hand[5];
-            const middleTip = hand[12];
-            const middlePIP = hand[10];
-            const middleMCP = hand[9];
-            const ringTip = hand[16];
-            const ringPIP = hand[14];
-            const ringMCP = hand[13];
-            const pinkyTip = hand[20];
-            const pinkyPIP = hand[18];
-            const pinkyMCP = hand[17];
+            const wrist = landmarks[0];
+            const indexMCP = landmarks[5];
+            const middleMCP = landmarks[9];
 
-            // Calculate palm center for hand position
-            const palmCenter = {
-                x: (wrist.x + indexMCP.x + pinkyMCP.x) / 3,
-                y: (wrist.y + indexMCP.y + pinkyMCP.y) / 3
-            };
+            // Helper functions
+            const isFingerExtended = (tip, pip) => tip.y < pip.y - 0.03;
+            const isFingerCurled = (tip, pip) => tip.y > pip.y + 0.02;
             
-            handPosition.x = palmCenter.x;
-            handPosition.y = palmCenter.y;
+            const indexExtended = isFingerExtended(indexTip, indexPIP);
+            const middleExtended = isFingerExtended(middleTip, middlePIP);
+            const ringExtended = isFingerExtended(ringTip, ringPIP);
+            const pinkyExtended = isFingerExtended(pinkyTip, pinkyPIP);
+            const thumbExtended = thumbTip.x < thumbIP.x - 0.03 || thumbTip.x > thumbIP.x + 0.03;
 
-            // Finger extension checks (tip below PIP = extended)
-            const indexExtended = indexTip.y < indexPIP.y - 0.03;
-            const middleExtended = middleTip.y < middlePIP.y - 0.03;
-            const ringExtended = ringTip.y < ringPIP.y - 0.03;
-            const pinkyExtended = pinkyTip.y < pinkyPIP.y - 0.03;
+            // Pinch detection (thumb and index close)
+            const pinchDist = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) + 
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
             
-            // Thumb extension (distance from wrist)
-            const thumbExtended = Math.abs(thumbTip.x - wrist.x) > 0.08;
-
-            // Pinch detection (thumb-index distance)
-            const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-            const isPinching = pinchDist < 0.07;
-
-            // Count extended fingers
-            const extendedCount = [indexExtended, middleExtended, ringExtended, pinkyExtended].filter(Boolean).length;
-
-            // Gesture recognition priority
-
-            // 1. Pinch gesture (thumb and index close)
-            if (isPinching && !ringExtended && !pinkyExtended) {
-                return { gesture: 'pinch', pinchDist };
+            if (pinchDist < 0.08) {
+                pinchDistance = pinchDist * 1000;
+                pinchScale = Math.max(0.3, Math.min(2, 1 + (0.05 - pinchDist) * 10));
+                return 'pinch';
             }
 
-            // 2. Middle finger (only middle extended)
+            // Middle finger (only middle extended)
             if (middleExtended && !indexExtended && !ringExtended && !pinkyExtended) {
-                return { gesture: 'middle', pinchDist: 0 };
+                return 'middle_finger';
             }
 
-            // 3. Peace sign (index and middle extended)
+            // Peace sign (index and middle extended)
             if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
-                return { gesture: 'peace', pinchDist: 0 };
+                return 'peace';
             }
 
-            // 4. Rock sign (index and pinky extended, middle and ring down)
-            if (indexExtended && pinkyExtended && !middleExtended && !ringExtended) {
-                return { gesture: 'rock', pinchDist: 0 };
+            // Rock sign (index and pinky extended)
+            if (indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
+                return 'rock';
             }
 
-            // 5. Finger heart (thumb and index tips close, forming heart with fingers curved)
-            const thumbIndexClose = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y) < 0.06;
-            if (thumbIndexClose && !middleExtended && !ringExtended && !pinkyExtended) {
-                // Check if forming the characteristic finger heart shape
-                const thumbCurved = thumbTip.y < thumbIP.y;
-                if (thumbCurved) {
-                    return { gesture: 'fingerHeart', pinchDist: 0 };
-                }
+            // Finger heart (thumb and index touching, others curled) - check for Korean finger heart
+            const thumbIndexDist = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) + 
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
+            if (thumbIndexDist < 0.1 && !middleExtended && !ringExtended && !pinkyExtended) {
+                return 'finger_heart';
             }
 
-            // 6. Open hand (all fingers extended)
-            if (extendedCount >= 4) {
-                return { gesture: 'open', pinchDist: 0 };
+            // Open palm (all fingers extended)
+            if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
+                return 'open_palm';
             }
 
-            // 7. Fist (no fingers extended)
-            if (extendedCount === 0 && !thumbExtended) {
-                return { gesture: 'fist', pinchDist: 0 };
+            // Fist (all fingers curled)
+            if (!indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+                return 'fist';
             }
 
-            // 8. Pointing/following (just index extended)
-            if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
-                return { gesture: 'follow', pinchDist: 0 };
-            }
-
-            return { gesture: 'none', pinchDist: 0 };
+            return 'none';
         }
 
-        /**
-         * Process detected gesture and update particles
-         */
-        function processGesture(gesture, pinchDist) {
-            // Update gesture display
-            updateGestureDisplay(gesture);
-
-            // Handle pinch zoom
-            if (gesture === 'pinch') {
-                const normalizedDist = Math.max(0, Math.min(1, 
-                    (pinchDist - CONFIG.pinchMinDist) / (CONFIG.pinchMaxDist - CONFIG.pinchMinDist)
-                ));
-                pinchDistance = 0.3 + normalizedDist * 1.4;
-                
-                // Show pinch indicator
-                const indicator = document.getElementById('pinchIndicator');
-                indicator.textContent = `${Math.round(normalizedDist * 100)}%`;
-                indicator.classList.add('visible');
-
-                // Calculate rotation from hand movement
-                const dx = handPosition.x - prevHandPosition.x;
-                const dy = handPosition.y - prevHandPosition.y;
-                targetRotation.y += dx * CONFIG.rotationSensitivity;
-                targetRotation.x += dy * CONFIG.rotationSensitivity;
-
-                // Smooth rotation
-                heart3DRotation.x += (targetRotation.x - heart3DRotation.x) * 0.1;
-                heart3DRotation.y += (targetRotation.y - heart3DRotation.y) * 0.1;
-
-                // Generate 3D heart
-                const points = generate3DHeart(pinchDistance, heart3DRotation.x, heart3DRotation.y);
-                particles.forEach((p, i) => {
-                    if (points[i]) {
-                        p.setTarget(points[i].x, points[i].y, points[i].z);
-                        p.color = CONFIG.heartColors[Math.floor(Math.random() * CONFIG.heartColors.length)];
-                        p.life = 1;
-                        p.alpha = 0.8;
-                    }
-                });
-            } else {
-                document.getElementById('pinchIndicator').classList.remove('visible');
-                
-                // Reset rotation when not pinching
-                if (prevGesture === 'pinch') {
-                    targetRotation = { x: 0, y: 0 };
-                }
-            }
-
-            // Handle gesture changes
-            if (gesture !== prevGesture) {
-                let points;
-                
-                switch (gesture) {
-                    case 'open':
-                        isAbsorbing = false;
-                        points = generateExplosion();
-                        particles.forEach((p, i) => {
-                            p.life = 1;
-                            p.alpha = 0.8;
-                            p.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                            if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                        });
-                        break;
-
-                    case 'fist':
-                        isAbsorbing = true;
-                        absorbProgress = 0;
-                        points = generateGather();
-                        particles.forEach((p, i) => {
-                            if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                        });
-                        break;
-
-                    case 'fingerHeart':
-                        isAbsorbing = false;
-                        points = generateHeart2D();
-                        particles.forEach((p, i) => {
-                            p.life = 1;
-                            p.alpha = 0.85;
-                            p.color = CONFIG.heartColors[Math.floor(Math.random() * CONFIG.heartColors.length)];
-                            if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                        });
-                        break;
-
-                    case 'rock':
-                        isAbsorbing = false;
-                        points = generateText('I LOVE YOU');
-                        particles.forEach((p, i) => {
-                            p.life = 1;
-                            p.alpha = 0.8;
-                            p.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                            if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                        });
-                        break;
-
-                    case 'peace':
-                        isAbsorbing = false;
-                        points = generateText('Made by Jay');
-                        particles.forEach((p, i) => {
-                            p.life = 1;
-                            p.alpha = 0.8;
-                            p.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                            if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                        });
-                        break;
-
-                    case 'middle':
-                        isAbsorbing = false;
-                        // Split particles between text and finger
-                        const textPoints = generateText('PAKYU KARIN BOI', -height * 0.12);
-                        const fingerPoints = generateMiddleFinger();
-                        const splitIndex = Math.floor(CONFIG.particleCount * 0.6);
-                        
-                        particles.forEach((p, i) => {
-                            p.life = 1;
-                            p.alpha = 0.85;
-                            p.color = i < splitIndex ? '#f43f5e' : '#ef4444';
-                            if (i < splitIndex && textPoints[i]) {
-                                p.setTarget(textPoints[i].x, textPoints[i].y, 0);
-                            } else if (fingerPoints[i - splitIndex]) {
-                                p.setTarget(fingerPoints[i - splitIndex].x, fingerPoints[i - splitIndex].y, 0);
-                            }
-                        });
-                        break;
-
-                    case 'follow':
-                        isAbsorbing = false;
-                        particles.forEach(p => {
-                            p.life = 1;
-                            p.alpha = 0.75;
-                        });
-                        break;
-
-                    default:
-                        isAbsorbing = false;
-                }
-
-                prevGesture = gesture;
-            }
-
-            // Continuous updates for follow gesture
-            if (gesture === 'follow') {
-                const points = generateFollow(handPosition.x, handPosition.y);
-                particles.forEach((p, i) => {
-                    if (points[i]) p.setTarget(points[i].x, points[i].y, 0);
-                });
-            }
-
-            // Continuous updates for fist (absorb)
-            if (gesture === 'fist' && isAbsorbing) {
-                absorbProgress += 0.015;
-                particles.forEach(p => {
-                    p.life = Math.max(0, 1 - absorbProgress);
-                });
-            }
-
-            prevHandPosition.x = handPosition.x;
-            prevHandPosition.y = handPosition.y;
-            currentGesture = gesture;
-        }
-
-        /**
-         * Update gesture display UI
-         */
-        function updateGestureDisplay(gesture) {
-            const displayEl = document.getElementById('currentGesture');
-            const items = document.querySelectorAll('.gesture-item');
-            
-            const gestureNames = {
-                'none': '👋 Waiting...',
-                'open': '🖐️ Open Palm',
-                'fist': '✊ Fist',
-                'fingerHeart': '🫰 Finger Heart',
-                'rock': '🤘 Rock Sign',
-                'peace': '✌️ Peace Sign',
-                'middle': '🖕 Middle Finger',
-                'pinch': '🤏 Pinch',
-                'follow': '👆 Following'
-            };
-            
-            displayEl.textContent = gestureNames[gesture] || '👋 Waiting...';
-            
-            items.forEach(item => {
-                item.classList.toggle('active', item.dataset.gesture === gesture);
+        // Update gesture UI
+        function updateGestureUI(gesture) {
+            document.querySelectorAll('.gesture-item').forEach(item => {
+                item.classList.remove('active');
             });
+            
+            const activeItem = document.querySelector(`[data-gesture="${gesture}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
+
+            const gestureNames = {
+                'open_palm': 'Open Palm',
+                'fist': 'Closed Fist',
+                'finger_heart': 'Finger Heart',
+                'rock': 'Rock Sign',
+                'peace': 'Peace Sign',
+                'middle_finger': 'Middle Finger',
+                'pinch': 'Pinch Gesture',
+                'none': 'No Gesture'
+            };
+
+            currentGestureEl.textContent = gestureNames[gesture] || 'Unknown';
+            currentGestureEl.classList.toggle('visible', gesture !== 'none');
+
+            if (gesture === 'pinch') {
+                pinchIndicator.textContent = `Zoom: ${Math.round(pinchScale * 100)}%`;
+                pinchIndicator.classList.add('visible');
+            } else {
+                pinchIndicator.classList.remove('visible');
+            }
         }
 
-        // ==================== HAND TRACKING SETUP ====================
-        
-        /**
-         * Handle hand detection results
-         */
-        function onHandResults(results) {
-            // Draw hand skeleton on overlay
-            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        // MediaPipe Hands setup
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+        });
+
+        let lastHandPosition = { x: 0.5, y: 0.5 };
+
+        hands.onResults((results) => {
+            handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
             
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    // Draw connections
-                    drawConnectors(overlayCtx, landmarks, HAND_CONNECTIONS, {
-                        color: 'rgba(99, 102, 241, 0.6)',
-                        lineWidth: 2
-                    });
-                    // Draw landmarks
-                    drawLandmarks(overlayCtx, landmarks, {
-                        color: 'rgba(236, 72, 153, 0.8)',
-                        lineWidth: 1,
-                        radius: 3
-                    });
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Draw hand skeleton
+                drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, {
+                    color: '#6366f1',
+                    lineWidth: 2
+                });
+                drawLandmarks(handCtx, landmarks, {
+                    color: '#a78bfa',
+                    lineWidth: 1,
+                    radius: 3
+                });
+
+                // Get palm center (average of wrist and middle finger MCP)
+                const wrist = landmarks[0];
+                const middleMCP = landmarks[9];
+                const palmX = (wrist.x + middleMCP.x) / 2;
+                const palmY = (wrist.y + middleMCP.y) / 2;
+                
+                // Map to canvas coordinates (mirrored)
+                handPosition.x = (1 - palmX) * canvas.width;
+                handPosition.y = palmY * canvas.height;
+
+                // Calculate rotation based on hand movement
+                const deltaX = palmX - lastHandPosition.x;
+                const deltaY = palmY - lastHandPosition.y;
+                rotation3D.y += deltaX * 5;
+                rotation3D.x += deltaY * 5;
+                lastHandPosition = { x: palmX, y: palmY };
+
+                // Detect gesture
+                const gesture = detectGesture(landmarks);
+                currentGesture = gesture;
+                updateGestureUI(gesture);
+
+                // Set mode and generate shapes based on gesture
+                switch(gesture) {
+                    case 'open_palm':
+                        currentMode = 'release';
+                        break;
+                    case 'fist':
+                        currentMode = 'absorb';
+                        break;
+                    case 'finger_heart':
+                        currentMode = 'shape';
+                        targetShapePoints = generateHeartShape(canvas.width / 2, canvas.height / 2, 150);
+                        break;
+                    case 'rock':
+                        currentMode = 'shape';
+                        targetShapePoints = generateTextShape('I LOVE YOU', canvas.width / 2, canvas.height / 2, 60);
+                        break;
+                    case 'peace':
+                        currentMode = 'shape';
+                        targetShapePoints = generateTextShape('Made by Jay', canvas.width / 2, canvas.height / 2, 70);
+                        break;
+                    case 'middle_finger':
+                        currentMode = 'shape';
+                        const textPoints = generateTextShape('PAKYU KARIN BOI', canvas.width / 2, canvas.height / 2 - 80, 50);
+                        const fingerPoints = generateMiddleFingerShape(canvas.width / 2, canvas.height / 2 + 60);
+                        targetShapePoints = [...textPoints, ...fingerPoints];
+                        break;
+                    case 'pinch':
+                        currentMode = 'shape3d';
+                        targetShapePoints = generate3DHeartShape(
+                            canvas.width / 2, 
+                            canvas.height / 2, 
+                            150 * pinchScale,
+                            rotation3D.x,
+                            rotation3D.y
+                        );
+                        break;
+                    default:
+                        currentMode = 'follow';
                 }
-                
-                const { gesture, pinchDist } = detectGesture(results.multiHandLandmarks);
-                processGesture(gesture, pinchDist);
+
+                statusIndicator.classList.add('active');
+                statusText.textContent = 'Hand detected';
             } else {
-                processGesture('none', 0);
+                currentMode = 'idle';
+                currentGesture = 'none';
+                updateGestureUI('none');
+                statusIndicator.classList.remove('active');
+                statusText.textContent = 'Show your hand';
             }
-        }
+        });
 
-        /**
-         * Initialize MediaPipe Hands
-         */
-        async function initHandTracking() {
+        // Start camera
+        async function startCamera() {
             try {
-                handsDetector = new Hands({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
                 });
-
-                handsDetector.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 1,
-                    minDetectionConfidence: 0.7,
-                    minTrackingConfidence: 0.5
-                });
-
-                handsDetector.onResults(onHandResults);
-
-                const videoElement = document.getElementById('webcam');
+                video.srcObject = stream;
                 
-                camera = new Camera(videoElement, {
-                    onFrame: async () => {
-                        if (cameraEnabled && handsDetector) {
-                            await handsDetector.send({ image: videoElement });
-                        }
-                    },
-                    width: 640,
-                    height: 480
-                });
-
-                await camera.start();
-                document.getElementById('loadingScreen').classList.add('hidden');
-                
+                video.onloadedmetadata = () => {
+                    video.play();
+                    
+                    const camera = new Camera(video, {
+                        onFrame: async () => {
+                            await hands.send({ image: video });
+                        },
+                        width: 640,
+                        height: 480
+                    });
+                    camera.start();
+                    
+                    loadingOverlay.classList.add('hidden');
+                    statusText.textContent = 'Show your hand';
+                };
             } catch (error) {
-                console.error('Hand tracking initialization failed:', error);
-                document.querySelector('.loading-text').textContent = 
-                    'Camera access required. Please enable and refresh.';
+                console.error('Camera error:', error);
+                statusText.textContent = 'Camera access denied';
+                loadingOverlay.querySelector('.loading-text').textContent = 'Please allow camera access';
             }
         }
+        startCamera();
 
-        // ==================== CANVAS SETUP ====================
-        
-        function initCanvas() {
-            canvas = document.getElementById('particleCanvas');
-            ctx = canvas.getContext('2d');
-            overlayCanvas = document.getElementById('overlayCanvas');
-            overlayCtx = overlayCanvas.getContext('2d');
-            
-            resizeCanvas();
-            
-            // Initialize particles
-            particles = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                particles.push(new Particle());
-            }
-        }
-
-        function resizeCanvas() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            centerX = width / 2;
-            centerY = height / 2;
-            
-            canvas.width = width;
-            canvas.height = height;
-            
-            const videoWrapper = document.getElementById('videoWrapper');
-            overlayCanvas.width = videoWrapper.offsetWidth;
-            overlayCanvas.height = videoWrapper.offsetHeight;
-        }
-
-        // ==================== ANIMATION LOOP ====================
-        
-        function animate(timestamp) {
-            const deltaTime = timestamp - lastFrameTime;
-            lastFrameTime = timestamp;
-
-            // Clear with fade for trails
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-            ctx.fillRect(0, 0, width, height);
+        // Animation loop
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Update and draw particles
-            for (const particle of particles) {
-                particle.update(currentGesture, handPosition.x, handPosition.y, deltaTime);
+            particles.forEach(particle => {
+                particle.update(currentMode, handPosition.x, handPosition.y, targetShapePoints);
                 particle.draw();
-            }
+            });
 
-            // Draw subtle connections
-            ctx.globalAlpha = 0.15;
-            ctx.strokeStyle = '#6366f1';
-            ctx.lineWidth = 0.5;
+            // Reset dead particles
+            particles.forEach((particle, index) => {
+                if (particle.alpha <= 0) {
+                    particles[index] = new Particle(
+                        canvas.width / 2 + (Math.random() - 0.5) * 200,
+                        canvas.height / 2 + (Math.random() - 0.5) * 200
+                    );
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Add glow effect
+        function drawGlow() {
+            const gradient = ctx.createRadialGradient(
+                handPosition.x, handPosition.y, 0,
+                handPosition.x, handPosition.y, 100
+            );
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+            gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
             
-            for (let i = 0; i < particles.length; i += 8) {
-                for (let j = i + 1; j < particles.length; j += 8) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = dx * dx + dy * dy;
-                    
-                    if (dist < 3000) {
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
-                }
-            }
-            ctx.globalAlpha = 1;
-
-            animationId = requestAnimationFrame(animate);
+            ctx.beginPath();
+            ctx.arc(handPosition.x, handPosition.y, 100, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
         }
-
-        // ==================== EVENT HANDLERS ====================
-        
-        function setupEventListeners() {
-            window.addEventListener('resize', () => {
-                resizeCanvas();
-                // Regenerate current shape on resize
-                if (currentGesture !== 'none') {
-                    prevGesture = 'none';
-                    processGesture(currentGesture, pinchDistance);
-                }
-            });
-
-            document.getElementById('toggleCamera').addEventListener('click', () => {
-                cameraEnabled = !cameraEnabled;
-                const btn = document.getElementById('toggleCamera');
-                const container = document.getElementById('videoContainer');
-                
-                btn.classList.toggle('active', cameraEnabled);
-                container.classList.toggle('hidden', !cameraEnabled);
-                
-                if (!cameraEnabled) {
-                    processGesture('none', 0);
-                }
-            });
-
-            document.getElementById('togglePanel').addEventListener('click', () => {
-                panelVisible = !panelVisible;
-                const btn = document.getElementById('togglePanel');
-                const panel = document.getElementById('gesturePanel');
-                
-                btn.classList.toggle('active', panelVisible);
-                panel.classList.toggle('hidden', !panelVisible);
-            });
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'c' || e.key === 'C') {
-                    document.getElementById('toggleCamera').click();
-                }
-                if (e.key === 'p' || e.key === 'P') {
-                    document.getElementById('togglePanel').click();
-                }
-            });
-        }
-
-        // ==================== INITIALIZATION ====================
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            initCanvas();
-            setupEventListeners();
-            animate(0);
-            initHandTracking();
-        });
     </script>
 </body>
 </html>
